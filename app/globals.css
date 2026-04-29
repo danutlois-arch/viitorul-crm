@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --brand-50: 242 250 244;
+  --brand-100: 221 242 227;
+  --brand-200: 185 225 196;
+  --brand-300: 136 198 156;
+  --brand-400: 72 162 110;
+  --brand-500: 12 100 52;
+  --brand-600: 7 93 47;
+  --brand-700: 5 76 39;
+  --brand-800: 6 58 33;
+  --brand-900: 6 44 27;
+  --pitch: 5 50 29;
+  --surface: 245 249 245;
+  --surface-accent: 233 244 236;
+  --card: 255 255 255;
+  --muted-ring: 6 90 49;
+}
+
+html {
+  background: rgb(var(--surface));
+}
+
+body {
+  @apply bg-surface text-slate-800 antialiased;
+  background-image:
+    radial-gradient(circle at top left, rgb(var(--brand-500) / 0.14), transparent 26%),
+    radial-gradient(circle at top right, rgb(var(--brand-300) / 0.12), transparent 28%),
+    linear-gradient(180deg, rgb(var(--surface)) 0%, rgb(var(--surface-accent)) 100%);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(11, 31, 23, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 31, 23, 0.03) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 75%);
+}
+
+::selection {
+  background: rgb(var(--brand-200));
+  color: rgb(var(--pitch));
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+  outline-color: rgb(var(--muted-ring));
+}

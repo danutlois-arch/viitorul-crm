@@ -1,0 +1,103 @@
+:root {
+  --bg: #f3efe6;
+  --bg-accent: #e3ebfa;
+  --panel: rgba(255, 252, 247, 0.86);
+  --panel-alt: rgba(247, 242, 233, 0.9);
+  --border: rgba(18, 28, 45, 0.12);
+  --border-soft: rgba(18, 28, 45, 0.08);
+  --text: #455065;
+  --muted: #6d7584;
+  --muted-strong: #4b5a75;
+  --heading: #13233f;
+  --accent: #173d91;
+  --gold: #f2bb51;
+  --danger: #9f2c2c;
+  --shadow:
+    0 24px 60px rgba(19, 35, 63, 0.08),
+    0 8px 24px rgba(19, 35, 63, 0.05);
+  --sans:
+    Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --display:
+    'Archivo Expanded', 'Arial Narrow', 'Segoe UI', sans-serif;
+
+  font-family: var(--sans);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(242, 187, 81, 0.24), transparent 28%),
+    radial-gradient(circle at right top, rgba(23, 61, 145, 0.14), transparent 32%),
+    linear-gradient(180deg, var(--bg-accent), var(--bg));
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.34), transparent 72%);
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  width: min(1400px, 100%);
+  margin: 0 auto;
+}
+
+h1,
+h2,
+h3,
+strong {
+  color: var(--heading);
+}
+
+h1,
+h2 {
+  font-family: var(--display);
+  letter-spacing: -0.04em;
+}
+
+h1 {
+  font-size: clamp(2.8rem, 5vw, 4.9rem);
+  line-height: 0.95;
+}
+
+h2 {
+  font-size: clamp(1.3rem, 2vw, 1.7rem);
+  line-height: 1.05;
+}
+
+h3,
+p {
+  margin: 0;
+}
