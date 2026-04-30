@@ -190,7 +190,7 @@ try {
 }
 
 printSection('Product defaults')
-printResult('pass', 'App name', env.NEXT_PUBLIC_APP_NAME || 'Football Club SaaS')
+printResult('pass', 'App name', env.NEXT_PUBLIC_APP_NAME || 'ClubPilot')
 printResult('pass', 'Default season', env.NEXT_PUBLIC_DEFAULT_SEASON || '2025/2026')
 printResult('pass', 'Default club', env.NEXT_PUBLIC_DEFAULT_CLUB_NAME || 'FC Viitorul Onești')
 

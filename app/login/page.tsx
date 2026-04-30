@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { LoginForm } from '@/components/LoginForm'
+import { APP_NAME } from '@/lib/app-config'
 import { isSupabaseConfigured } from '@/lib/env'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
@@ -19,7 +20,7 @@ export default async function LoginPage() {
     <main className="min-h-screen p-6 lg:p-10">
       <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-6xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-[2rem] bg-pitch bg-grid bg-[size:34px_34px] p-8 text-white shadow-card lg:p-12">
-          <p className="text-xs uppercase tracking-[0.3em] text-brand-200">Football Club SaaS</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-brand-200">{APP_NAME}</p>
           <h1 className="mt-4 max-w-xl text-4xl font-semibold leading-tight lg:text-6xl">
             Administrare modernă pentru cluburi și academii de fotbal din România.
           </h1>

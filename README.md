@@ -1,4 +1,4 @@
-# Football Club SaaS
+# ClubPilot
 
 Platformă SaaS pentru cluburi și academii de fotbal din România, construită cu `Next.js 14`, `TypeScript`, `Tailwind CSS` și pregătită pentru `Supabase`.
 
