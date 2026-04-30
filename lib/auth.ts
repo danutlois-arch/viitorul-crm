@@ -63,22 +63,46 @@ export async function getAppViewer(): Promise<AppViewer> {
   }
 
   const admin = createSupabaseAdminClient()
-  const { data: profile, error: profileError } = await admin
-    .from('profiles')
-    .select('full_name, email, club_id')
-    .eq('id', user.id)
-    .maybeSingle()
+  const [adminProfileResult, adminMembershipResult] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('full_name, email, club_id')
+      .eq('id', user.id)
+      .maybeSingle(),
+    admin
+      .from('club_memberships')
+      .select('role, club_id')
+      .eq('user_id', user.id)
+      .limit(1),
+  ])
 
-  const { data: memberships, error: membershipsError } = await admin
-    .from('club_memberships')
-    .select('role, club_id')
-    .eq('user_id', user.id)
-    .limit(1)
+  const [memberProfileResult, memberMembershipResult] =
+    !adminProfileResult.data && !adminMembershipResult.data?.length
+      ? await Promise.all([
+          supabase
+            .from('profiles')
+            .select('full_name, email, club_id')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('club_memberships')
+            .select('role, club_id')
+            .eq('user_id', user.id)
+            .limit(1),
+        ])
+      : [{ data: null }, { data: null }]
 
-  const activeClubId = profile?.club_id ?? memberships?.[0]?.club_id
-  const hasRealMembership = Boolean(profile || memberships?.length)
+  const profile = adminProfileResult.data ?? memberProfileResult.data ?? null
+  const memberships = adminMembershipResult.data?.length
+    ? adminMembershipResult.data
+    : memberMembershipResult.data?.length
+      ? memberMembershipResult.data
+      : []
 
-  const { data: club, error: clubError } = activeClubId
+  const activeClubId = profile?.club_id ?? memberships?.[0]?.club_id ?? null
+  const hasRealMembership = Boolean(activeClubId && (profile || memberships.length))
+
+  const clubResult = activeClubId
     ? await admin
         .from('clubs')
         .select(
@@ -88,12 +112,35 @@ export async function getAppViewer(): Promise<AppViewer> {
         .maybeSingle()
     : { data: null, error: null }
 
+  const memberClubResult =
+    !clubResult.data && activeClubId
+      ? await supabase
+          .from('clubs')
+          .select(
+            'id, name, cui, city, county, logo_url, email, phone, address, website, social_media, subscription_status, theme_key'
+          )
+          .eq('id', activeClubId)
+          .maybeSingle()
+      : { data: null, error: null }
+
+  const club = clubResult.data ?? memberClubResult.data ?? null
+
   const fallbackRole = (memberships?.[0]?.role as UserRole | undefined) ?? 'player'
   const fallbackFullName = profile?.full_name ?? user.email ?? currentUser.fullName
   const fallbackEmail = profile?.email ?? user.email
-  const hasRuntimeErrors = Boolean(profileError || membershipsError || clubError)
 
-  if (!club || !hasRealMembership || hasRuntimeErrors) {
+  if (!club && hasRealMembership) {
+    return buildViewerWithDemoClub({
+      userId: user.id,
+      fullName: fallbackFullName,
+      role: fallbackRole,
+      email: fallbackEmail,
+      clubId: activeClubId ?? currentClub.id,
+      source: 'supabase',
+    })
+  }
+
+  if (!hasRealMembership) {
     return buildViewerWithDemoClub({
       userId: user.id,
       fullName: fallbackFullName,
@@ -101,6 +148,17 @@ export async function getAppViewer(): Promise<AppViewer> {
       email: fallbackEmail,
       clubId: activeClubId ?? currentClub.id,
       source: 'demo',
+    })
+  }
+
+  if (!club) {
+    return buildViewerWithDemoClub({
+      userId: user.id,
+      fullName: fallbackFullName,
+      role: fallbackRole,
+      email: fallbackEmail,
+      clubId: activeClubId ?? currentClub.id,
+      source: 'supabase',
     })
   }
 
