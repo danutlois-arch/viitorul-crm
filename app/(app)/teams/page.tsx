@@ -7,6 +7,8 @@ import { TeamForm } from '@/components/TeamForm'
 import { deleteTeamAction } from '@/app/(app)/teams/actions'
 import { getAppViewer } from '@/lib/auth'
 import { canManageResource } from '@/lib/permissions'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   getTeamByIdForCurrentClub,
   getTeamCatalogs,
@@ -30,6 +32,41 @@ export default async function TeamsPage({
 }) {
   const viewer = await getAppViewer()
   const canManageTeams = canManageResource(viewer.user.role, 'teams')
+  const supabase = createSupabaseServerClient()
+  const admin = createSupabaseAdminClient()
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser()
+  const [adminProfileDebug, adminMembershipDebug, memberProfileDebug, memberMembershipDebug] =
+    authUser
+      ? await Promise.all([
+          admin
+            .from('profiles')
+            .select('id, full_name, email, club_id')
+            .eq('id', authUser.id)
+            .maybeSingle(),
+          admin.from('club_memberships').select('id, role, club_id').eq('user_id', authUser.id),
+          supabase
+            .from('profiles')
+            .select('id, full_name, email, club_id')
+            .eq('id', authUser.id)
+            .maybeSingle(),
+          supabase
+            .from('club_memberships')
+            .select('id, role, club_id')
+            .eq('user_id', authUser.id),
+        ])
+      : [null, null, null, null]
+
+  const diagnosticClubId =
+    adminProfileDebug?.data?.club_id ??
+    adminMembershipDebug?.data?.[0]?.club_id ??
+    memberProfileDebug?.data?.club_id ??
+    memberMembershipDebug?.data?.[0]?.club_id ??
+    null
+  const adminClubDebug = diagnosticClubId
+    ? await admin.from('clubs').select('id, name').eq('id', diagnosticClubId).maybeSingle()
+    : null
   const [catalogs, teams, existingTeam] = await Promise.all([
     getTeamCatalogs(),
     getTeamsForCurrentClubLive(),
@@ -91,6 +128,9 @@ export default async function TeamsPage({
         <p className="text-xs uppercase tracking-[0.22em] text-amber-700">Diagnostic Teams</p>
         <div className="mt-2 grid gap-1 sm:grid-cols-2">
           <p>
+            <span className="font-semibold">authUserId:</span> {authUser?.id ?? '-'}
+          </p>
+          <p>
             <span className="font-semibold">source:</span> {viewer.source}
           </p>
           <p>
@@ -101,6 +141,36 @@ export default async function TeamsPage({
           </p>
           <p>
             <span className="font-semibold">email:</span> {viewer.user.email ?? '-'}
+          </p>
+          <p>
+            <span className="font-semibold">adminProfile:</span>{' '}
+            {adminProfileDebug?.data
+              ? `${adminProfileDebug.data.id} / ${adminProfileDebug.data.club_id ?? '-'}`
+              : adminProfileDebug?.error?.message ?? 'null'}
+          </p>
+          <p>
+            <span className="font-semibold">adminMemberships:</span>{' '}
+            {adminMembershipDebug?.data?.length
+              ? `${adminMembershipDebug.data.length} / ${adminMembershipDebug.data[0]?.role ?? '-'} / ${adminMembershipDebug.data[0]?.club_id ?? '-'}`
+              : adminMembershipDebug?.error?.message ?? '0'}
+          </p>
+          <p>
+            <span className="font-semibold">memberProfile:</span>{' '}
+            {memberProfileDebug?.data
+              ? `${memberProfileDebug.data.id} / ${memberProfileDebug.data.club_id ?? '-'}`
+              : memberProfileDebug?.error?.message ?? 'null'}
+          </p>
+          <p>
+            <span className="font-semibold">memberMemberships:</span>{' '}
+            {memberMembershipDebug?.data?.length
+              ? `${memberMembershipDebug.data.length} / ${memberMembershipDebug.data[0]?.role ?? '-'} / ${memberMembershipDebug.data[0]?.club_id ?? '-'}`
+              : memberMembershipDebug?.error?.message ?? '0'}
+          </p>
+          <p>
+            <span className="font-semibold">adminClub:</span>{' '}
+            {adminClubDebug?.data
+              ? `${adminClubDebug.data.id} / ${adminClubDebug.data.name}`
+              : adminClubDebug?.error?.message ?? '-'}
           </p>
         </div>
       </section>
