@@ -63,6 +63,7 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
     .limit(1)
 
   const activeClubId = profile?.club_id ?? memberships?.[0]?.club_id
+  const hasRealMembership = Boolean(profile || memberships?.length)
 
   const { data: club } = activeClubId
     ? await admin
@@ -75,6 +76,22 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
     : { data: null }
 
   if (!club) {
+    if (hasRealMembership) {
+      return {
+        club: {
+          ...currentClub,
+          id: activeClubId ?? currentClub.id,
+        },
+        user: {
+          id: user.id,
+          fullName: profile?.full_name ?? user.email ?? currentUser.fullName,
+          role: (memberships?.[0]?.role as UserRole | undefined) ?? currentUser.role,
+          email: profile?.email ?? user.email,
+        },
+        source: 'supabase',
+      }
+    }
+
     return {
       club: currentClub,
       user: {
