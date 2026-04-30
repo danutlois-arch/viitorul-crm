@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import { currentClub, currentUser } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { Club, UserRole } from '@/lib/types'
 
@@ -47,13 +48,15 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
     }
   }
 
-  const { data: profile } = await supabase
+  const admin = createSupabaseAdminClient()
+
+  const { data: profile } = await admin
     .from('profiles')
     .select('full_name, email, club_id')
     .eq('id', user.id)
     .maybeSingle()
 
-  const { data: memberships } = await supabase
+  const { data: memberships } = await admin
     .from('club_memberships')
     .select('role, club_id')
     .eq('user_id', user.id)
@@ -62,7 +65,7 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
   const activeClubId = profile?.club_id ?? memberships?.[0]?.club_id
 
   const { data: club } = activeClubId
-    ? await supabase
+    ? await admin
         .from('clubs')
         .select(
           'id, name, cui, city, county, logo_url, email, phone, address, website, social_media, subscription_status, theme_key'
