@@ -104,7 +104,7 @@ function mapPlayerRow(row: SupabasePlayerRow): Player {
 export async function getTeamsForCurrentClub() {
   const viewer = await getAppViewer()
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return demoTeams
   }
 
@@ -128,7 +128,7 @@ export async function getTeamsForCurrentClub() {
     .order('name')
 
   if (error || !data) {
-    return demoTeams
+    return []
   }
 
   return (data as SupabaseTeamRow[]).map(mapTeamRow)
@@ -138,7 +138,7 @@ export async function getPlayersForCurrentClub() {
   const viewer = await getAppViewer()
   const teams = await getTeamsForCurrentClub()
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       players: demoPlayers,
       rows: demoPlayers.map((player) => {
@@ -191,20 +191,17 @@ export async function getPlayersForCurrentClub() {
 
   if (error || !data) {
     return {
-      players: demoPlayers,
-      rows: demoPlayers.map((player) => {
-        const team = teams.find((entry) => entry.id === player.teamId)
-        return {
-          id: player.id,
-          teamId: player.teamId,
-          name: `${player.firstName} ${player.lastName}`,
-          team: team?.name ?? '-',
-          age: calculateAge(player.dateOfBirth),
-          position: player.position,
-          status: player.status,
-          goals: player.goals,
-        }
-      }),
+      players: [],
+      rows: [] as {
+        id: string
+        teamId: string
+        name: string
+        team: string
+        age: number
+        position: string
+        status: PlayerStatus
+        goals: number
+      }[],
     }
   }
 

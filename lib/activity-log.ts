@@ -62,7 +62,7 @@ export async function logClubActivity(input: {
 export async function getRecentActivityForCurrentClub(limit = 8) {
   const viewer = await getAppViewer()
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return demoEntries
   }
 

@@ -87,7 +87,7 @@ export async function getTeamCatalogs() {
 export async function getTeamsForCurrentClubLive() {
   const viewer = await getAppViewer()
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return demoTeams
   }
 
@@ -111,7 +111,7 @@ export async function getTeamsForCurrentClubLive() {
     .order('name')
 
   if (error || !data) {
-    return demoTeams
+    return []
   }
 
   return (data as SupabaseTeamRow[]).map(mapTeamRow)

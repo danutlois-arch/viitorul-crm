@@ -31,7 +31,7 @@ function mapAttendanceRow(row: SupabaseAttendanceRow): AttendanceSession {
 export async function getAttendanceForCurrentClub() {
   const viewer = await getAppViewer()
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return demoAttendance
   }
 
@@ -53,7 +53,7 @@ export async function getAttendanceForCurrentClub() {
     .order('session_date', { ascending: false })
 
   if (error || !data) {
-    return demoAttendance
+    return []
   }
 
   return data.map((row) => {

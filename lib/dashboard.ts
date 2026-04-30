@@ -78,12 +78,10 @@ export async function getDashboardData() {
       getSuspensionsForCurrentClub(),
     ])
 
-  const players = playerData.players.length ? playerData.players : demoPlayers
-  const activeTeams = teams.length ? teams : demoTeams
-  const activeMatches = matches.length ? matches : demoMatches
-  const contributions = paymentData.contributions.length
-    ? paymentData.contributions
-    : demoContributions
+  const players = playerData.players.length ? playerData.players : []
+  const activeTeams = teams.length ? teams : []
+  const activeMatches = matches.length ? matches : []
+  const contributions = paymentData.contributions.length ? paymentData.contributions : []
 
   const topScorer = getTopScorer(players)
   const topContribution = getTopContribution(contributions)

@@ -1,6 +1,5 @@
 import { revalidatePath } from 'next/cache'
 import { getAppViewer } from '@/lib/auth'
-import { currentUser } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { getNotificationsForCurrentClub } from '@/lib/notifications'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -63,8 +62,8 @@ function mapInboxRow(row: InboxRow): NotificationInboxItem {
 async function getCurrentUserContext() {
   const viewer = await getAppViewer()
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo' || !viewer.user.id) {
-    return { viewer, userId: currentUser.id, source: 'demo' as const }
+  if (!isSupabaseConfigured() || !viewer.user.id) {
+    return { viewer, userId: null, source: 'demo' as const }
   }
 
   return { viewer, userId: viewer.user.id, source: 'supabase' as const }
@@ -123,18 +122,7 @@ export async function getNotificationInboxForCurrentUser(limit = 8) {
   const context = await getCurrentUserContext()
 
   if (context.source === 'demo') {
-    const notifications = await getNotificationsForCurrentClub()
-    return notifications.items.slice(0, limit).map((item, index) => ({
-      id: `demo-inbox-${index + 1}`,
-      notificationKey: item.id,
-      title: item.title,
-      description: item.description,
-      tone: item.tone,
-      href: item.href,
-      category: item.category,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    }))
+    return []
   }
 
   const supabase = createSupabaseServerClient()

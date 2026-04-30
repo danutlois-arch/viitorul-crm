@@ -4,7 +4,7 @@ import { getAppViewer } from '@/lib/auth'
 import { isSupabaseConfigured } from '@/lib/env'
 import { membershipRoles } from '@/lib/membership-catalog'
 import { ensureViewerCanManage } from '@/lib/permissions'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { UserRole } from '@/lib/types'
 
 interface MembershipRow {
@@ -26,21 +26,11 @@ function getProfileFromMembership(row: MembershipRow) {
 export async function getMembershipsForCurrentClub() {
   const viewer = await getAppViewer()
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
-    return {
-      rows: [
-        {
-          id: 'demo-membership-1',
-          userId: 'demo-user-1',
-          fullName: viewer.user.fullName,
-          email: viewer.user.email ?? 'admin@demo.ro',
-          role: viewer.user.role,
-        },
-      ],
-    }
+  if (!isSupabaseConfigured()) {
+    return { rows: [] }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data, error } = await supabase
     .from('club_memberships')
     .select(
@@ -85,7 +75,7 @@ export async function createMembershipForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -93,7 +83,7 @@ export async function createMembershipForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data: profile } = await supabase
     .from('profiles')
     .select('id')
@@ -143,7 +133,7 @@ export async function updateMembershipForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -151,7 +141,7 @@ export async function updateMembershipForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('club_memberships')
     .update({ role: input.role })
@@ -161,8 +151,7 @@ export async function updateMembershipForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut actualiza membership-ul. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut actualiza membership-ul: ${error.message}`,
     }
   }
 
@@ -184,7 +173,7 @@ export async function deleteMembershipForCurrentClub(membershipId: string) {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -192,7 +181,7 @@ export async function deleteMembershipForCurrentClub(membershipId: string) {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('club_memberships')
     .delete()
@@ -202,8 +191,7 @@ export async function deleteMembershipForCurrentClub(membershipId: string) {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut șterge membership-ul. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut șterge membership-ul: ${error.message}`,
     }
   }
 

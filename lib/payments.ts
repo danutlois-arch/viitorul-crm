@@ -93,7 +93,7 @@ export async function getPaymentsForCurrentClub() {
   const viewer = await getAppViewer()
   const playerData = await getPlayersForCurrentClub()
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return buildPaymentView(demoPayments, demoPlayers, demoContributions)
   }
 
@@ -145,13 +145,13 @@ export async function getPaymentsForCurrentClub() {
   ])
 
   if (paymentsError || !paymentRows) {
-    return buildPaymentView(demoPayments, demoPlayers, demoContributions)
+    return buildPaymentView([], playerData.players, [])
   }
 
   const mappedContributions =
     !contributionsError && contributionRows
       ? (contributionRows as SupabaseContributionRow[]).map(mapContributionRow)
-      : demoContributions
+      : []
 
   return buildPaymentView(
     (paymentRows as SupabasePaymentRow[]).map(mapPaymentRow),
@@ -546,7 +546,7 @@ export async function getContributionBySessionOrId(input: {
     return null
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return (
       demoContributions.find(
         (item) =>

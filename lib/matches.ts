@@ -46,7 +46,7 @@ function mapMatchRow(row: SupabaseMatchRow): Match {
 export async function getMatchesForCurrentClub() {
   const viewer = await getAppViewer()
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return demoMatches
   }
 
@@ -74,7 +74,7 @@ export async function getMatchesForCurrentClub() {
     .order('match_date', { ascending: false })
 
   if (error || !data) {
-    return demoMatches
+    return []
   }
 
   return (data as SupabaseMatchRow[]).map(mapMatchRow)
