@@ -34,7 +34,9 @@ export async function loginAction(
   })
 
   if (error) {
-    return { error: 'Autentificare eșuată. Verifică emailul și parola.' }
+    return {
+      error: `Autentificare eșuată: ${error.message}`,
+    }
   }
 
   redirect('/dashboard')
