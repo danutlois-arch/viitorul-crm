@@ -74,6 +74,13 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
   }
 
   const admin = createSupabaseAdminClient()
+  const authenticatedFallback = buildViewerWithDemoClub({
+    userId: user.id,
+    fullName: user.email ?? currentUser.fullName,
+    role: currentUser.role,
+    email: user.email,
+    source: 'supabase',
+  })
   const { data: profile, error: profileError } = await admin
     .from('profiles')
     .select('full_name, email, club_id')
@@ -133,7 +140,7 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
       role: fallbackRole,
       email: fallbackEmail,
       clubId: activeClubId ?? currentClub.id,
-      source: 'demo',
+      source: 'supabase',
     })
   }
 
