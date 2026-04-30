@@ -5,6 +5,7 @@ import { competitions as demoCompetitions, teamCategories as demoCategories } fr
 import { teams as demoTeams } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { ensureViewerCanManage } from '@/lib/permissions'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { CompetitionName, Team, TeamCategory } from '@/lib/types'
 
@@ -37,6 +38,24 @@ function mapTeamRow(row: SupabaseTeamRow): Team {
     assistantCoach: row.assistant_coach ?? '',
     teamManager: row.team_manager ?? '',
   }
+}
+
+async function ensureLookupId(input: {
+  table: 'team_categories' | 'competitions'
+  label: string
+}) {
+  const admin = createSupabaseAdminClient()
+  const { data, error } = await admin
+    .from(input.table)
+    .upsert({ label: input.label }, { onConflict: 'label' })
+    .select('id')
+    .single()
+
+  if (error || !data?.id) {
+    return null
+  }
+
+  return data.id as string
 }
 
 export async function getTeamCatalogs() {
@@ -124,31 +143,23 @@ export async function createTeamForCurrentClub(input: {
   }
 
   const supabase = createSupabaseServerClient()
-  const [{ data: categoryRow }, { data: competitionRow }] = await Promise.all([
-    supabase
-      .from('team_categories')
-      .select('id')
-      .eq('label', input.category)
-      .maybeSingle(),
-    supabase
-      .from('competitions')
-      .select('id')
-      .eq('label', input.competition)
-      .maybeSingle(),
+  const [categoryId, competitionId] = await Promise.all([
+    ensureLookupId({ table: 'team_categories', label: input.category }),
+    ensureLookupId({ table: 'competitions', label: input.competition }),
   ])
 
-  if (!categoryRow?.id || !competitionRow?.id) {
+  if (!categoryId || !competitionId) {
     return {
       ok: false,
-      message: 'Categoria sau competiția selectată nu există în catalogul Supabase.',
+      message: 'Nu am putut pregăti categoria sau competiția selectată în catalogul Supabase.',
     }
   }
 
   const { error } = await supabase.from('teams').insert({
     club_id: viewer.club.id,
     name: input.name,
-    category_id: categoryRow.id,
-    competition_id: competitionRow.id,
+    category_id: categoryId,
+    competition_id: competitionId,
     season: input.season,
     head_coach: input.headCoach || null,
     assistant_coach: input.assistantCoach || null,
@@ -208,23 +219,15 @@ export async function updateTeamForCurrentClub(input: {
   }
 
   const supabase = createSupabaseServerClient()
-  const [{ data: categoryRow }, { data: competitionRow }] = await Promise.all([
-    supabase
-      .from('team_categories')
-      .select('id')
-      .eq('label', input.category)
-      .maybeSingle(),
-    supabase
-      .from('competitions')
-      .select('id')
-      .eq('label', input.competition)
-      .maybeSingle(),
+  const [categoryId, competitionId] = await Promise.all([
+    ensureLookupId({ table: 'team_categories', label: input.category }),
+    ensureLookupId({ table: 'competitions', label: input.competition }),
   ])
 
-  if (!categoryRow?.id || !competitionRow?.id) {
+  if (!categoryId || !competitionId) {
     return {
       ok: false,
-      message: 'Categoria sau competiția selectată nu există în catalogul Supabase.',
+      message: 'Nu am putut pregăti categoria sau competiția selectată în catalogul Supabase.',
     }
   }
 
@@ -232,8 +235,8 @@ export async function updateTeamForCurrentClub(input: {
     .from('teams')
     .update({
       name: input.name,
-      category_id: categoryRow.id,
-      competition_id: competitionRow.id,
+      category_id: categoryId,
+      competition_id: competitionId,
       season: input.season,
       head_coach: input.headCoach || null,
       assistant_coach: input.assistantCoach || null,
