@@ -16,6 +16,29 @@ export interface AppViewer {
   source: 'supabase' | 'demo'
 }
 
+function buildViewerWithDemoClub(input: {
+  userId?: string
+  fullName: string
+  role: UserRole
+  email?: string
+  clubId?: string
+  source: 'supabase' | 'demo'
+}): AppViewer {
+  return {
+    club: {
+      ...currentClub,
+      id: input.clubId ?? currentClub.id,
+    },
+    user: {
+      id: input.userId,
+      fullName: input.fullName,
+      role: input.role,
+      email: input.email,
+    },
+    source: input.source,
+  }
+}
+
 const roleFallback: UserRole[] = [
   'club_admin',
   'sporting_director',
@@ -28,11 +51,12 @@ const roleFallback: UserRole[] = [
 
 export const getAppViewer = cache(async (): Promise<AppViewer> => {
   if (!isSupabaseConfigured()) {
-    return {
-      club: currentClub,
-      user: currentUser,
+    return buildViewerWithDemoClub({
+      userId: currentUser.id,
+      fullName: currentUser.fullName,
+      role: currentUser.role,
       source: 'demo',
-    }
+    })
   }
 
   const supabase = createSupabaseServerClient()
@@ -41,22 +65,22 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return {
-      club: currentClub,
-      user: currentUser,
+    return buildViewerWithDemoClub({
+      userId: currentUser.id,
+      fullName: currentUser.fullName,
+      role: currentUser.role,
       source: 'demo',
-    }
+    })
   }
 
   const admin = createSupabaseAdminClient()
-
-  const { data: profile } = await admin
+  const { data: profile, error: profileError } = await admin
     .from('profiles')
     .select('full_name, email, club_id')
     .eq('id', user.id)
     .maybeSingle()
 
-  const { data: memberships } = await admin
+  const { data: memberships, error: membershipsError } = await admin
     .from('club_memberships')
     .select('role, club_id')
     .eq('user_id', user.id)
@@ -65,7 +89,7 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
   const activeClubId = profile?.club_id ?? memberships?.[0]?.club_id
   const hasRealMembership = Boolean(profile || memberships?.length)
 
-  const { data: club } = activeClubId
+  const { data: club, error: clubError } = activeClubId
     ? await admin
         .from('clubs')
         .select(
@@ -73,35 +97,44 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
         )
         .eq('id', activeClubId)
         .maybeSingle()
-    : { data: null }
+    : { data: null, error: null }
+
+  const fallbackRole = (memberships?.[0]?.role as UserRole | undefined) ?? currentUser.role
+  const fallbackFullName = profile?.full_name ?? user.email ?? currentUser.fullName
+  const fallbackEmail = profile?.email ?? user.email
+  const runtimeErrors = [profileError?.message, membershipsError?.message, clubError?.message].filter(Boolean)
 
   if (!club) {
     if (hasRealMembership) {
-      return {
-        club: {
-          ...currentClub,
-          id: activeClubId ?? currentClub.id,
-        },
-        user: {
-          id: user.id,
-          fullName: profile?.full_name ?? user.email ?? currentUser.fullName,
-          role: (memberships?.[0]?.role as UserRole | undefined) ?? currentUser.role,
-          email: profile?.email ?? user.email,
-        },
-        source: 'supabase',
+      if (runtimeErrors.length) {
+        return buildViewerWithDemoClub({
+          userId: user.id,
+          fullName: `${fallbackFullName} [viewer fallback]`,
+          role: fallbackRole,
+          email: fallbackEmail,
+          clubId: activeClubId ?? currentClub.id,
+          source: 'supabase',
+        })
       }
+
+      return buildViewerWithDemoClub({
+        userId: user.id,
+        fullName: fallbackFullName,
+        role: fallbackRole,
+        email: fallbackEmail,
+        clubId: activeClubId ?? currentClub.id,
+        source: 'supabase',
+      })
     }
 
-    return {
-      club: currentClub,
-      user: {
-        id: user.id,
-        fullName: profile?.full_name ?? user.email ?? currentUser.fullName,
-        role: memberships?.[0]?.role ?? currentUser.role,
-        email: user.email,
-      },
+    return buildViewerWithDemoClub({
+      userId: user.id,
+      fullName: fallbackFullName,
+      role: fallbackRole,
+      email: fallbackEmail,
+      clubId: activeClubId ?? currentClub.id,
       source: 'demo',
-    }
+    })
   }
 
   return {
