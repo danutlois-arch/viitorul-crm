@@ -243,7 +243,7 @@ export async function createPaymentForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -310,7 +310,7 @@ export async function updatePaymentForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -367,7 +367,7 @@ export async function deletePaymentForCurrentClub(paymentId: string) {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -422,7 +422,7 @@ export async function createContributionForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:

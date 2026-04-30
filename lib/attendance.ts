@@ -91,7 +91,7 @@ export async function createAttendanceSessionForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -142,7 +142,7 @@ export async function updateAttendanceSessionForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -188,7 +188,7 @@ export async function deleteAttendanceSessionForCurrentClub(sessionId: string) {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:

@@ -87,6 +87,23 @@ export default async function TeamsPage({
 
   return (
     <div className="space-y-5">
+      <section className="rounded-[2rem] border border-dashed border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <p className="text-xs uppercase tracking-[0.22em] text-amber-700">Diagnostic Teams</p>
+        <div className="mt-2 grid gap-1 sm:grid-cols-2">
+          <p>
+            <span className="font-semibold">source:</span> {viewer.source}
+          </p>
+          <p>
+            <span className="font-semibold">role:</span> {viewer.user.role}
+          </p>
+          <p>
+            <span className="font-semibold">clubId:</span> {viewer.club.id}
+          </p>
+          <p>
+            <span className="font-semibold">email:</span> {viewer.user.email ?? '-'}
+          </p>
+        </div>
+      </section>
       {canManageTeams ? (
         <TeamForm
           categories={catalogs.categories}

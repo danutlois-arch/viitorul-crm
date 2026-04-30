@@ -249,7 +249,7 @@ export async function createPlayerForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -308,7 +308,7 @@ export async function updatePlayerForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
@@ -360,7 +360,7 @@ export async function deletePlayerForCurrentClub(playerId: string) {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:

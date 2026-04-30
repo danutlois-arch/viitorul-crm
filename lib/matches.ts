@@ -98,7 +98,7 @@ export async function createMatchForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message: 'Conectează Supabase și autentifică-te pentru a salva meciuri reale.',
@@ -179,7 +179,7 @@ export async function updateMatchForCurrentClub(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message: 'Conectează Supabase și autentifică-te pentru a actualiza meciuri reale.',
@@ -244,7 +244,7 @@ export async function deleteMatchForCurrentClub(matchId: string) {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message: 'Conectează Supabase și autentifică-te pentru a șterge meciuri reale.',

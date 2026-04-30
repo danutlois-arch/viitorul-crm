@@ -31,7 +31,7 @@ export async function updateCurrentClubSettings(input: {
     return { ok: false, message: permission.message }
   }
 
-  if (!isSupabaseConfigured() || viewer.source === 'demo') {
+  if (!isSupabaseConfigured()) {
     return {
       ok: false,
       message:
