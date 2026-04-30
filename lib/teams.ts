@@ -6,7 +6,6 @@ import { teams as demoTeams } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { ensureViewerCanManage } from '@/lib/permissions'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { CompetitionName, Team, TeamCategory } from '@/lib/types'
 
 interface SupabaseLookupRow {
@@ -66,7 +65,7 @@ export async function getTeamCatalogs() {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const [{ data: categoryRows, error: categoryError }, { data: competitionRows, error: competitionError }] =
     await Promise.all([
       supabase.from('team_categories').select('id, label').order('label'),
@@ -92,7 +91,7 @@ export async function getTeamsForCurrentClubLive() {
     return demoTeams
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data, error } = await supabase
     .from('teams')
     .select(
@@ -142,7 +141,7 @@ export async function createTeamForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const [categoryId, competitionId] = await Promise.all([
     ensureLookupId({ table: 'team_categories', label: input.category }),
     ensureLookupId({ table: 'competitions', label: input.competition }),
@@ -169,7 +168,7 @@ export async function createTeamForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message: 'Nu am putut salva echipa. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut salva echipa: ${error.message}`,
     }
   }
 
@@ -218,7 +217,7 @@ export async function updateTeamForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const [categoryId, competitionId] = await Promise.all([
     ensureLookupId({ table: 'team_categories', label: input.category }),
     ensureLookupId({ table: 'competitions', label: input.competition }),
@@ -248,7 +247,7 @@ export async function updateTeamForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message: 'Nu am putut actualiza echipa. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut actualiza echipa: ${error.message}`,
     }
   }
 
@@ -285,7 +284,7 @@ export async function deleteTeamForCurrentClub(teamId: string) {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('teams')
     .delete()
@@ -295,8 +294,7 @@ export async function deleteTeamForCurrentClub(teamId: string) {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut șterge echipa. Verifică dacă există jucători, meciuri sau prezențe asociate.',
+      message: `Nu am putut șterge echipa: ${error.message}`,
     }
   }
 

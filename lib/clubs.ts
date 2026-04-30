@@ -4,7 +4,7 @@ import { getAppViewer } from '@/lib/auth'
 import { currentClub } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { ensureViewerCanManage } from '@/lib/permissions'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
 export async function getCurrentClubDetails() {
   const viewer = await getAppViewer()
@@ -39,7 +39,7 @@ export async function updateCurrentClubSettings(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('clubs')
     .update({
@@ -60,8 +60,7 @@ export async function updateCurrentClubSettings(input: {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut salva setările clubului. Verifică politicile RLS și drepturile rolului curent.',
+      message: `Nu am putut salva setările clubului: ${error.message}`,
     }
   }
 

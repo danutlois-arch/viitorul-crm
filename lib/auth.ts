@@ -1,4 +1,3 @@
-import { cache } from 'react'
 import { currentClub, currentUser } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
@@ -39,17 +38,7 @@ function buildViewerWithDemoClub(input: {
   }
 }
 
-const roleFallback: UserRole[] = [
-  'club_admin',
-  'sporting_director',
-  'coach',
-  'team_manager',
-  'parent',
-  'player',
-  'super_admin',
-]
-
-export const getAppViewer = cache(async (): Promise<AppViewer> => {
+export async function getAppViewer(): Promise<AppViewer> {
   if (!isSupabaseConfigured()) {
     return buildViewerWithDemoClub({
       userId: currentUser.id,
@@ -74,13 +63,6 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
   }
 
   const admin = createSupabaseAdminClient()
-  const authenticatedFallback = buildViewerWithDemoClub({
-    userId: user.id,
-    fullName: user.email ?? currentUser.fullName,
-    role: currentUser.role,
-    email: user.email,
-    source: 'supabase',
-  })
   const { data: profile, error: profileError } = await admin
     .from('profiles')
     .select('full_name, email, club_id')
@@ -106,41 +88,19 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
         .maybeSingle()
     : { data: null, error: null }
 
-  const fallbackRole = (memberships?.[0]?.role as UserRole | undefined) ?? currentUser.role
+  const fallbackRole = (memberships?.[0]?.role as UserRole | undefined) ?? 'player'
   const fallbackFullName = profile?.full_name ?? user.email ?? currentUser.fullName
   const fallbackEmail = profile?.email ?? user.email
-  const runtimeErrors = [profileError?.message, membershipsError?.message, clubError?.message].filter(Boolean)
+  const hasRuntimeErrors = Boolean(profileError || membershipsError || clubError)
 
-  if (!club) {
-    if (hasRealMembership) {
-      if (runtimeErrors.length) {
-        return buildViewerWithDemoClub({
-          userId: user.id,
-          fullName: `${fallbackFullName} [viewer fallback]`,
-          role: fallbackRole,
-          email: fallbackEmail,
-          clubId: activeClubId ?? currentClub.id,
-          source: 'supabase',
-        })
-      }
-
-      return buildViewerWithDemoClub({
-        userId: user.id,
-        fullName: fallbackFullName,
-        role: fallbackRole,
-        email: fallbackEmail,
-        clubId: activeClubId ?? currentClub.id,
-        source: 'supabase',
-      })
-    }
-
+  if (!club || !hasRealMembership || hasRuntimeErrors) {
     return buildViewerWithDemoClub({
       userId: user.id,
       fullName: fallbackFullName,
       role: fallbackRole,
       email: fallbackEmail,
       clubId: activeClubId ?? currentClub.id,
-      source: 'supabase',
+      source: 'demo',
     })
   }
 
@@ -163,9 +123,9 @@ export const getAppViewer = cache(async (): Promise<AppViewer> => {
     user: {
       id: user.id,
       fullName: profile?.full_name ?? user.email ?? currentUser.fullName,
-      role: (memberships?.[0]?.role as UserRole | undefined) ?? roleFallback[0],
+      role: (memberships?.[0]?.role as UserRole | undefined) ?? 'player',
       email: profile?.email ?? user.email,
     },
     source: 'supabase',
   }
-})
+}

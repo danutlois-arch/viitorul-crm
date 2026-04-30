@@ -5,7 +5,7 @@ import { competitions as competitionCatalog } from '@/lib/catalogs'
 import { matches as demoMatches } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { ensureViewerCanManage } from '@/lib/permissions'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { getTeamsForCurrentClubLive } from '@/lib/teams'
 import type { CompetitionName, Match, MatchStatus } from '@/lib/types'
 
@@ -50,7 +50,7 @@ export async function getMatchesForCurrentClub() {
     return demoMatches
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data, error } = await supabase
     .from('matches')
     .select(
@@ -105,7 +105,7 @@ export async function createMatchForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data: competitionRow } = await supabase
     .from('competitions')
     .select('id')
@@ -136,7 +136,7 @@ export async function createMatchForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message: 'Nu am putut salva meciul. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut salva meciul: ${error.message}`,
     }
   }
 
@@ -186,7 +186,7 @@ export async function updateMatchForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data: competitionRow } = await supabase
     .from('competitions')
     .select('id')
@@ -219,7 +219,7 @@ export async function updateMatchForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message: 'Nu am putut actualiza meciul. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut actualiza meciul: ${error.message}`,
     }
   }
 
@@ -251,7 +251,7 @@ export async function deleteMatchForCurrentClub(matchId: string) {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('matches')
     .delete()
@@ -261,8 +261,7 @@ export async function deleteMatchForCurrentClub(matchId: string) {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut șterge meciul. Verifică dacă există statistici, lot sau suspendări asociate.',
+      message: `Nu am putut șterge meciul: ${error.message}`,
     }
   }
 

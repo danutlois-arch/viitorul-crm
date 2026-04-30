@@ -11,7 +11,7 @@ import { isSupabaseConfigured } from '@/lib/env'
 import { monthToLabel } from '@/lib/payment-utils'
 import { ensureViewerCanManage } from '@/lib/permissions'
 import { getPlayersForCurrentClub } from '@/lib/players'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { getStripeClient, isStripeConfigured } from '@/lib/stripe'
 import type {
   Contribution,
@@ -97,7 +97,7 @@ export async function getPaymentsForCurrentClub() {
     return buildPaymentView(demoPayments, demoPlayers, demoContributions)
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const [
     { data: paymentRows, error: paymentsError },
     { data: contributionRows, error: contributionsError },
@@ -252,7 +252,7 @@ export async function createPaymentForCurrentClub(input: {
   }
 
   const paidAt = input.paidAmount > 0 ? new Date().toISOString().slice(0, 10) : null
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase.from('payments').insert({
     club_id: viewer.club.id,
     player_id: input.playerId,
@@ -269,7 +269,7 @@ export async function createPaymentForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message: 'Nu am putut salva plata. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut salva plata: ${error.message}`,
     }
   }
 
@@ -319,7 +319,7 @@ export async function updatePaymentForCurrentClub(input: {
   }
 
   const paidAt = input.paidAmount > 0 ? new Date().toISOString().slice(0, 10) : null
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('payments')
     .update({
@@ -339,7 +339,7 @@ export async function updatePaymentForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message: 'Nu am putut actualiza plata. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut actualiza plata: ${error.message}`,
     }
   }
 
@@ -375,7 +375,7 @@ export async function deletePaymentForCurrentClub(paymentId: string) {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('payments')
     .delete()
@@ -385,7 +385,7 @@ export async function deletePaymentForCurrentClub(paymentId: string) {
   if (error) {
     return {
       ok: false,
-      message: 'Nu am putut șterge plata. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut șterge plata: ${error.message}`,
     }
   }
 
@@ -430,7 +430,7 @@ export async function createContributionForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const insertPayload = {
     club_id: viewer.club.id,
     contributor_name: input.contributorName,
@@ -457,8 +457,7 @@ export async function createContributionForCurrentClub(input: {
   if (error || !contributionRow?.id) {
     return {
       ok: false,
-      message:
-        'Nu am putut salva contribuția. Verifică tabela funding_contributions și politicile RLS.',
+      message: `Nu am putut salva contribuția: ${error?.message ?? 'rândul nu a fost creat.'}`,
     }
   }
 
@@ -557,7 +556,7 @@ export async function getContributionBySessionOrId(input: {
     )
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   let query = supabase
     .from('funding_contributions')
     .select(

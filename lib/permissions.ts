@@ -58,6 +58,15 @@ export function canManageResource(role: UserRole, resource: PermissionResource) 
 export async function ensureViewerCanManage(resource: PermissionResource) {
   const viewer = await getAppViewer()
 
+  if (viewer.source !== 'supabase' || !viewer.user.id) {
+    return {
+      ok: false as const,
+      viewer,
+      message:
+        'Contul autentificat nu are încă acces operațional complet în club. Verifică profilul, membership-ul și conexiunea live la Supabase.',
+    }
+  }
+
   if (canManageResource(viewer.user.role, resource)) {
     return { ok: true as const, viewer }
   }

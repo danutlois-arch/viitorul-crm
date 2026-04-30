@@ -4,7 +4,7 @@ import { getAppViewer } from '@/lib/auth'
 import { players as demoPlayers, teams as demoTeams } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { ensureViewerCanManage } from '@/lib/permissions'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { Player, PlayerStatus, Team } from '@/lib/types'
 import { calculateAge } from '@/lib/utils'
 
@@ -108,7 +108,7 @@ export async function getTeamsForCurrentClub() {
     return demoTeams
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data, error } = await supabase
     .from('teams')
     .select(
@@ -157,7 +157,7 @@ export async function getPlayersForCurrentClub() {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data, error } = await supabase
     .from('players')
     .select(
@@ -257,7 +257,7 @@ export async function createPlayerForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase.from('players').insert({
     club_id: viewer.club.id,
     team_id: input.teamId,
@@ -273,7 +273,7 @@ export async function createPlayerForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message: 'Nu am putut salva jucătorul. Verifică politicile RLS și datele trimise.',
+      message: `Nu am putut salva jucătorul: ${error.message}`,
     }
   }
 
@@ -316,7 +316,7 @@ export async function updatePlayerForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('players')
     .update({
@@ -334,8 +334,7 @@ export async function updatePlayerForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut actualiza jucătorul. Verifică politicile RLS și datele trimise.',
+      message: `Nu am putut actualiza jucătorul: ${error.message}`,
     }
   }
 
@@ -369,7 +368,7 @@ export async function deletePlayerForCurrentClub(playerId: string) {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('players')
     .delete()
@@ -379,8 +378,7 @@ export async function deletePlayerForCurrentClub(playerId: string) {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut șterge jucătorul. Verifică politicile RLS și dependențele de date.',
+      message: `Nu am putut șterge jucătorul: ${error.message}`,
     }
   }
 

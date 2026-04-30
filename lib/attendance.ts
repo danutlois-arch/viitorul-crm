@@ -4,7 +4,7 @@ import { getAppViewer } from '@/lib/auth'
 import { attendanceSessions as demoAttendance } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { ensureViewerCanManage } from '@/lib/permissions'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { AttendanceSession } from '@/lib/types'
 
 interface SupabaseAttendanceRow {
@@ -35,7 +35,7 @@ export async function getAttendanceForCurrentClub() {
     return demoAttendance
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data, error } = await supabase
     .from('attendance_sessions')
     .select(
@@ -99,7 +99,7 @@ export async function createAttendanceSessionForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase.from('attendance_sessions').insert({
     club_id: viewer.club.id,
     team_id: input.teamId,
@@ -112,8 +112,7 @@ export async function createAttendanceSessionForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut salva sesiunea de prezență. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut salva sesiunea de prezență: ${error.message}`,
     }
   }
 
@@ -151,7 +150,7 @@ export async function updateAttendanceSessionForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('attendance_sessions')
     .update({
@@ -167,8 +166,7 @@ export async function updateAttendanceSessionForCurrentClub(input: {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut actualiza sesiunea de prezență. Verifică rolul curent și politicile RLS.',
+      message: `Nu am putut actualiza sesiunea de prezență: ${error.message}`,
     }
   }
 
@@ -198,7 +196,7 @@ export async function deleteAttendanceSessionForCurrentClub(sessionId: string) {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('attendance_sessions')
     .delete()
@@ -208,8 +206,7 @@ export async function deleteAttendanceSessionForCurrentClub(sessionId: string) {
   if (error) {
     return {
       ok: false,
-      message:
-        'Nu am putut șterge sesiunea de prezență. Verifică dacă există înregistrări de prezență asociate.',
+      message: `Nu am putut șterge sesiunea de prezență: ${error.message}`,
     }
   }
 
