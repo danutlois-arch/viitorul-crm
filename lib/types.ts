@@ -27,6 +27,7 @@ export type CompetitionName =
   | 'SuperLiga'
   | 'Liga 2'
   | 'Liga 3'
+  | 'Liga 3 PlayOff'
   | 'Liga 4'
   | 'Liga 5 / Judetean'
   | 'Liga de Tineret'

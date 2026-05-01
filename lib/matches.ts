@@ -22,14 +22,24 @@ interface SupabaseMatchRow {
   opponent_score: number | null
   status: MatchStatus
   notes: string | null
-  competitions: { label: CompetitionName }[] | null
+  competitions: { label: CompetitionName } | { label: CompetitionName }[] | null
+}
+
+function getCompetitionLabel(
+  value: { label: CompetitionName } | { label: CompetitionName }[] | null | undefined
+) {
+  if (!value) {
+    return null
+  }
+
+  return Array.isArray(value) ? value[0]?.label ?? null : value.label
 }
 
 function mapMatchRow(row: SupabaseMatchRow): Match {
   return {
     id: row.id,
     teamId: row.team_id,
-    competition: row.competitions?.[0]?.label ?? 'Amical',
+    competition: getCompetitionLabel(row.competitions) ?? 'Amical',
     round: row.round_label ?? '',
     opponent: row.opponent,
     venueType: row.venue_type,
@@ -106,13 +116,13 @@ export async function createMatchForCurrentClub(input: {
   }
 
   const supabase = createSupabaseAdminClient()
-  const { data: competitionRow } = await supabase
+  const { data: competitionRow, error: competitionError } = await supabase
     .from('competitions')
+    .upsert({ label: input.competition }, { onConflict: 'label' })
     .select('id')
-    .eq('label', input.competition)
-    .maybeSingle()
+    .single()
 
-  if (!competitionRow?.id) {
+  if (competitionError || !competitionRow?.id) {
     return {
       ok: false,
       message: 'Competiția selectată nu există în catalogul Supabase.',
@@ -187,13 +197,13 @@ export async function updateMatchForCurrentClub(input: {
   }
 
   const supabase = createSupabaseAdminClient()
-  const { data: competitionRow } = await supabase
+  const { data: competitionRow, error: competitionError } = await supabase
     .from('competitions')
+    .upsert({ label: input.competition }, { onConflict: 'label' })
     .select('id')
-    .eq('label', input.competition)
-    .maybeSingle()
+    .single()
 
-  if (!competitionRow?.id) {
+  if (competitionError || !competitionRow?.id) {
     return {
       ok: false,
       message: 'Competiția selectată nu există în catalogul Supabase.',
