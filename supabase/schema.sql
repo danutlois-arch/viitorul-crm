@@ -56,6 +56,7 @@ create table public.club_memberships (
   club_id uuid not null references public.clubs (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
   role public.user_role not null,
+  assigned_team_id uuid references public.teams (id) on delete set null,
   created_at timestamptz not null default now(),
   unique (club_id, user_id, role)
 );
@@ -158,6 +159,7 @@ create table public.attendance_records (
   attendance_session_id uuid not null references public.attendance_sessions (id) on delete cascade,
   player_id uuid not null references public.players (id) on delete cascade,
   status public.attendance_status not null,
+  coach_rating numeric(3,1),
   notes text,
   unique (attendance_session_id, player_id)
 );
@@ -611,6 +613,7 @@ values
   ('SuperLiga'),
   ('Liga 2'),
   ('Liga 3'),
+  ('Liga 3 PlayOff'),
   ('Liga 4'),
   ('Liga 5 / Judetean'),
   ('Liga de Tineret'),

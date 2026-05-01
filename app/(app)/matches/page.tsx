@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton'
 import { DataTable } from '@/components/DataTable'
 import { FilterToolbar } from '@/components/FilterToolbar'
@@ -6,6 +7,7 @@ import { ListControls } from '@/components/ListControls'
 import { MatchForm } from '@/components/MatchForm'
 import { deleteMatchAction } from '@/app/(app)/matches/actions'
 import { getAppViewer } from '@/lib/auth'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { canManageResource } from '@/lib/permissions'
 import {
   getMatchByIdForCurrentClub,
@@ -31,6 +33,9 @@ export default async function MatchesPage({
   }
 }) {
   const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const canManageMatches = canManageResource(viewer.user.role, 'matches')
   const [teams, matches, competitions, existingMatch] = await Promise.all([
     getTeamsForCurrentClubLive(),

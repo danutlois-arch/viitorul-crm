@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton'
 import { DataTable } from '@/components/DataTable'
 import { StatisticForm } from '@/components/StatisticForm'
 import { StatCard } from '@/components/StatCard'
 import { deleteStatisticAction } from '@/app/(app)/statistics/actions'
 import { getAppViewer } from '@/lib/auth'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { canManageResource } from '@/lib/permissions'
 import {
   getStatisticEntryByIdForCurrentClub,
@@ -17,6 +19,9 @@ export default async function StatisticsPage({
   searchParams?: { edit?: string }
 }) {
   const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const canManageStatistics = canManageResource(viewer.user.role, 'statistics')
   const [statistics, existingStatistic] = await Promise.all([
     getStatisticsForCurrentClub(),

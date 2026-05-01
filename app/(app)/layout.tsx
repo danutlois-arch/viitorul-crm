@@ -49,6 +49,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             county={viewer.club.county}
             source={viewer.source}
             logoPath={logoPath}
+            role={viewer.user.role}
+            assignedTeamId={viewer.user.assignedTeamId}
           />
         </div>
         <div className="space-y-4">

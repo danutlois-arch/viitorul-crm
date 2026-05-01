@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { DataTable } from '@/components/DataTable'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
@@ -7,6 +8,7 @@ import { StatCard } from '@/components/StatCard'
 import { getRecentActivityForCurrentClub } from '@/lib/activity-log'
 import { getAppViewer } from '@/lib/auth'
 import { getThemeByKey, getDefaultThemeKeyForClub } from '@/lib/club-branding'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { getDashboardData } from '@/lib/dashboard'
 import { getNotificationsForCurrentClub } from '@/lib/notifications'
 import { getClubOnboardingProgress } from '@/lib/onboarding'
@@ -15,6 +17,9 @@ import { formatCurrency } from '@/lib/utils'
 
 export default async function DashboardPage() {
   const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const canManagePlayers = canManageResource(viewer.user.role, 'players')
   const canManageTeams = canManageResource(viewer.user.role, 'teams')
   const canManageMatches = canManageResource(viewer.user.role, 'matches')

@@ -1,12 +1,19 @@
+import { redirect } from 'next/navigation'
 import { DataTable } from '@/components/DataTable'
 import { CsvExportButton } from '@/components/CsvExportButton'
 import { ExcelExportButton } from '@/components/ExcelExportButton'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { PrintReportButton } from '@/components/PrintReportButton'
 import { StatCard } from '@/components/StatCard'
+import { getAppViewer } from '@/lib/auth'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { getReportsData } from '@/lib/reports'
 
 export default async function ReportsPage() {
+  const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const reports = await getReportsData()
 
   return (

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton'
 import { DataTable } from '@/components/DataTable'
 import { FilterToolbar } from '@/components/FilterToolbar'
@@ -6,6 +7,7 @@ import { ListControls } from '@/components/ListControls'
 import { TeamForm } from '@/components/TeamForm'
 import { deleteTeamAction } from '@/app/(app)/teams/actions'
 import { getAppViewer } from '@/lib/auth'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { canManageResource } from '@/lib/permissions'
 import {
   getTeamByIdForCurrentClub,
@@ -29,6 +31,9 @@ export default async function TeamsPage({
   }
 }) {
   const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const canManageTeams = canManageResource(viewer.user.role, 'teams')
   const [catalogs, teams, existingTeam] = await Promise.all([
     getTeamCatalogs(),

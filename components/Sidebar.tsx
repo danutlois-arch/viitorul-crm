@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ClubLogo } from '@/components/ClubLogo'
 import { navigation } from '@/lib/navigation'
+import type { UserRole } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -11,10 +12,25 @@ interface SidebarProps {
   county: string
   source: 'supabase' | 'demo'
   logoPath?: string
+  role?: UserRole
+  assignedTeamId?: string | null
 }
 
-export function Sidebar({ clubName, city, county, source, logoPath }: SidebarProps) {
+export function Sidebar({
+  clubName,
+  city,
+  county,
+  source,
+  logoPath,
+  role,
+  assignedTeamId,
+}: SidebarProps) {
   const pathname = usePathname()
+  const coachLinks =
+    role === 'coach' && assignedTeamId
+      ? [{ href: '/coach', label: 'Coach Center' as const }]
+      : []
+  const links = coachLinks.length ? coachLinks : navigation
 
   return (
     <aside className="flex h-full flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-pitch px-4 py-5 text-white shadow-card">
@@ -40,7 +56,7 @@ export function Sidebar({ clubName, city, county, source, logoPath }: SidebarPro
       </div>
 
       <nav className="mt-6 grid flex-1 grid-cols-2 gap-2 overflow-y-auto lg:flex lg:grid-cols-1 lg:flex-col">
-        {navigation.map((item) => {
+        {links.map((item) => {
           const active = pathname === item.href
           return (
             <Link

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton'
 import { ClubLogo } from '@/components/ClubLogo'
 import { DataTable } from '@/components/DataTable'
@@ -14,6 +15,7 @@ import { deleteMembershipAction } from '@/app/(app)/clubs/memberships-actions'
 import { getRecentActivityForCurrentClub } from '@/lib/activity-log'
 import { getAppViewer } from '@/lib/auth'
 import { clubThemes, getThemeByKey } from '@/lib/club-branding'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { isEmailConfigured } from '@/lib/email'
 import { getRecentEmailDispatchesForCurrentClub } from '@/lib/email-reminders'
 import {
@@ -39,6 +41,9 @@ export default async function ClubsPage({
   searchParams?: { editMembership?: string }
 }) {
   const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const canManageClubSettings = canManageResource(viewer.user.role, 'club_settings')
   const canManageMemberships = canManageResource(viewer.user.role, 'memberships')
   const activeTheme = getThemeByKey(viewer.club.themeKey)

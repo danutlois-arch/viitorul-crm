@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton'
 import { DataTable } from '@/components/DataTable'
 import { FilterToolbar } from '@/components/FilterToolbar'
@@ -6,6 +7,7 @@ import { ListControls } from '@/components/ListControls'
 import { PlayerForm } from '@/components/PlayerForm'
 import { deletePlayerAction } from '@/app/(app)/players/actions'
 import { getAppViewer } from '@/lib/auth'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { canManageResource } from '@/lib/permissions'
 import {
   getPlayerByIdForCurrentClub,
@@ -30,6 +32,9 @@ export default async function PlayersPage({
   }
 }) {
   const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const canManagePlayers = canManageResource(viewer.user.role, 'players')
   const [teams, playerData, existingPlayer] = await Promise.all([
     getTeamsForCurrentClub(),

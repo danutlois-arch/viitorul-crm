@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton'
 import { ContributionStatusBadge } from '@/components/ContributionStatusBadge'
 import { DataTable } from '@/components/DataTable'
@@ -11,6 +12,7 @@ import { SegmentedTabs } from '@/components/SegmentedTabs'
 import { StatCard } from '@/components/StatCard'
 import { deletePaymentAction } from '@/app/(app)/payments/actions'
 import { getAppViewer } from '@/lib/auth'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { canManageResource } from '@/lib/permissions'
 import {
   getContributionBySessionOrId,
@@ -40,6 +42,9 @@ export default async function PaymentsPage({
   }
 }) {
   const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const canManagePayments = canManageResource(viewer.user.role, 'payments')
   const canManageContributions = canManageResource(viewer.user.role, 'contributions')
   const [paymentData, contributionContext, existingPayment] = await Promise.all([

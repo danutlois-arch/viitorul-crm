@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton'
 import { DataTable } from '@/components/DataTable'
 import { StatCard } from '@/components/StatCard'
 import { SuspensionForm } from '@/components/SuspensionForm'
 import { deleteSuspensionAction } from '@/app/(app)/suspensions/actions'
 import { getAppViewer } from '@/lib/auth'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { canManageResource } from '@/lib/permissions'
 import {
   getSuspensionByIdForCurrentClub,
@@ -17,6 +19,9 @@ export default async function SuspensionsPage({
   searchParams?: { edit?: string }
 }) {
   const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const canManageSuspensions = canManageResource(viewer.user.role, 'suspensions')
   const [suspensions, existingSuspension] = await Promise.all([
     getSuspensionDashboardForCurrentClub(),

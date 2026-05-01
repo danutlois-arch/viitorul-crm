@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton'
 import { AttendanceForm } from '@/components/AttendanceForm'
 import { DataTable } from '@/components/DataTable'
@@ -10,6 +11,7 @@ import {
   getAttendanceSessionByIdForCurrentClub,
 } from '@/lib/attendance'
 import { getAppViewer } from '@/lib/auth'
+import { isCoachLockedToCenter } from '@/lib/coach'
 import { canManageResource } from '@/lib/permissions'
 import { getTeamsForCurrentClubLive } from '@/lib/teams'
 import { parsePositiveInt } from '@/lib/url-state'
@@ -29,6 +31,9 @@ export default async function AttendancePage({
   }
 }) {
   const viewer = await getAppViewer()
+  if (isCoachLockedToCenter(viewer)) {
+    redirect('/coach')
+  }
   const canManageAttendance = canManageResource(viewer.user.role, 'attendance')
   const [teams, attendanceSessions, existingAttendance] = await Promise.all([
     getTeamsForCurrentClubLive(),
