@@ -7,7 +7,10 @@ import { TeamForm } from '@/components/TeamForm'
 import { deleteTeamAction } from '@/app/(app)/teams/actions'
 import { getAppViewer } from '@/lib/auth'
 import { canManageResource } from '@/lib/permissions'
-import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import {
+  createSupabaseAdminClient,
+  getSupabaseServiceRoleDiagnostic,
+} from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   getTeamByIdForCurrentClub,
@@ -34,6 +37,7 @@ export default async function TeamsPage({
   const canManageTeams = canManageResource(viewer.user.role, 'teams')
   const supabase = createSupabaseServerClient()
   const admin = createSupabaseAdminClient()
+  const serviceRoleDiagnostic = getSupabaseServiceRoleDiagnostic()
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser()
@@ -141,6 +145,9 @@ export default async function TeamsPage({
           </p>
           <p>
             <span className="font-semibold">email:</span> {viewer.user.email ?? '-'}
+          </p>
+          <p>
+            <span className="font-semibold">serviceRoleEnv:</span> {serviceRoleDiagnostic}
           </p>
           <p>
             <span className="font-semibold">adminProfile:</span>{' '}
