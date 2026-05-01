@@ -23,9 +23,14 @@ export async function createMembershipAction(
   const mode = String(formData.get('mode') ?? 'create').trim()
   const email = String(formData.get('email') ?? '').trim()
   const role = String(formData.get('role') ?? '').trim() as UserRole
+  const assignedTeamId = String(formData.get('assignedTeamId') ?? '').trim() || null
 
   if (!membershipRoles.includes(role)) {
     return { error: 'Rolul selectat nu este valid pentru membership.' }
+  }
+
+  if (role === 'coach' && !assignedTeamId) {
+    return { error: 'Alege grupa/echipa pe care o va gestiona antrenorul.' }
   }
 
   const result =
@@ -33,10 +38,12 @@ export async function createMembershipAction(
       ? await updateMembershipForCurrentClub({
           membershipId,
           role,
+          assignedTeamId,
         })
       : await createMembershipForCurrentClub({
           email,
           role,
+          assignedTeamId,
         })
 
   return result.ok ? { success: result.message } : { error: result.message }

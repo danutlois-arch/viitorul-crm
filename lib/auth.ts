@@ -11,6 +11,7 @@ export interface AppViewer {
     fullName: string
     role: UserRole
     email?: string
+    assignedTeamId?: string | null
   }
   source: 'supabase' | 'demo'
 }
@@ -22,6 +23,7 @@ function buildViewerWithDemoClub(input: {
   email?: string
   clubId?: string
   source: 'supabase' | 'demo'
+  assignedTeamId?: string | null
 }): AppViewer {
   return {
     club: {
@@ -33,6 +35,7 @@ function buildViewerWithDemoClub(input: {
       fullName: input.fullName,
       role: input.role,
       email: input.email,
+      assignedTeamId: input.assignedTeamId ?? null,
     },
     source: input.source,
   }
@@ -71,7 +74,7 @@ export async function getAppViewer(): Promise<AppViewer> {
       .maybeSingle(),
     admin
       .from('club_memberships')
-      .select('role, club_id')
+      .select('role, club_id, assigned_team_id')
       .eq('user_id', user.id)
       .limit(1),
   ])
@@ -86,7 +89,7 @@ export async function getAppViewer(): Promise<AppViewer> {
             .maybeSingle(),
           supabase
             .from('club_memberships')
-            .select('role, club_id')
+            .select('role, club_id, assigned_team_id')
             .eq('user_id', user.id)
             .limit(1),
         ])
@@ -126,6 +129,7 @@ export async function getAppViewer(): Promise<AppViewer> {
   const club = clubResult.data ?? memberClubResult.data ?? null
 
   const fallbackRole = (memberships?.[0]?.role as UserRole | undefined) ?? 'player'
+  const fallbackAssignedTeamId = memberships?.[0]?.assigned_team_id ?? null
   const fallbackFullName = profile?.full_name ?? user.email ?? currentUser.fullName
   const fallbackEmail = profile?.email ?? user.email
 
@@ -137,6 +141,7 @@ export async function getAppViewer(): Promise<AppViewer> {
       email: fallbackEmail,
       clubId: activeClubId ?? currentClub.id,
       source: 'supabase',
+      assignedTeamId: fallbackAssignedTeamId,
     })
   }
 
@@ -148,6 +153,7 @@ export async function getAppViewer(): Promise<AppViewer> {
       email: fallbackEmail,
       clubId: activeClubId ?? currentClub.id,
       source: 'demo',
+      assignedTeamId: fallbackAssignedTeamId,
     })
   }
 
@@ -159,6 +165,7 @@ export async function getAppViewer(): Promise<AppViewer> {
       email: fallbackEmail,
       clubId: activeClubId ?? currentClub.id,
       source: 'supabase',
+      assignedTeamId: fallbackAssignedTeamId,
     })
   }
 
@@ -183,6 +190,7 @@ export async function getAppViewer(): Promise<AppViewer> {
       fullName: profile?.full_name ?? user.email ?? currentUser.fullName,
       role: (memberships?.[0]?.role as UserRole | undefined) ?? 'player',
       email: profile?.email ?? user.email,
+      assignedTeamId: memberships?.[0]?.assigned_team_id ?? null,
     },
     source: 'supabase',
   }

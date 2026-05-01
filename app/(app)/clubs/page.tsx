@@ -31,6 +31,7 @@ import {
   getCurrentUserNotificationSettings,
   getNotificationInboxForCurrentUser,
 } from '@/lib/user-notifications'
+import { getTeamsForCurrentClubLive } from '@/lib/teams'
 
 export default async function ClubsPage({
   searchParams,
@@ -47,6 +48,7 @@ export default async function ClubsPage({
   const [
     memberships,
     existingMembership,
+    teams,
     onboarding,
     recentActivity,
     notificationSettings,
@@ -59,6 +61,7 @@ export default async function ClubsPage({
     searchParams?.editMembership
       ? getMembershipByIdForCurrentClub(searchParams.editMembership)
       : Promise.resolve(null),
+    getTeamsForCurrentClubLive(),
     getClubOnboardingProgress(),
     getRecentActivityForCurrentClub(),
     getCurrentUserNotificationSettings(),
@@ -113,6 +116,7 @@ export default async function ClubsPage({
         <MembershipForm
           source={viewer.source}
           existingMembership={existingMembership}
+          teams={teams.map((team) => ({ id: team.id, name: team.name }))}
         />
       ) : (
         <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-card">
@@ -248,6 +252,11 @@ export default async function ClubsPage({
           { key: 'fullName', header: 'Nume' },
           { key: 'email', header: 'Email' },
           { key: 'role', header: 'Rol' },
+          {
+            key: 'assignedTeamName',
+            header: 'Grupa alocată',
+            render: (row) => row.assignedTeamName || '-',
+          },
           ...(canManageMemberships
             ? [
                 {

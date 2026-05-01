@@ -5,22 +5,32 @@ import { isSupabaseConfigured } from '@/lib/env'
 import { membershipRoles } from '@/lib/membership-catalog'
 import { ensureViewerCanManage } from '@/lib/permissions'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
-import type { UserRole } from '@/lib/types'
+import type { MembershipListItem, UserRole } from '@/lib/types'
 
 interface MembershipRow {
   id: string
   user_id: string
   role: UserRole
+  assigned_team_id: string | null
   profiles:
     | {
         full_name: string
         email: string
       }[]
     | null
+  teams:
+    | {
+        name: string
+      }[]
+    | null
 }
 
 function getProfileFromMembership(row: MembershipRow) {
   return Array.isArray(row.profiles) ? row.profiles[0] : null
+}
+
+function getTeamFromMembership(row: MembershipRow) {
+  return Array.isArray(row.teams) ? row.teams[0] : null
 }
 
 export async function getMembershipsForCurrentClub() {
@@ -38,7 +48,9 @@ export async function getMembershipsForCurrentClub() {
         id,
         user_id,
         role,
-        profiles(full_name, email)
+        assigned_team_id,
+        profiles(full_name, email),
+        teams(name)
       `
     )
     .eq('club_id', viewer.club.id)
@@ -49,12 +61,14 @@ export async function getMembershipsForCurrentClub() {
   }
 
   return {
-    rows: (data as MembershipRow[]).map((row) => ({
+    rows: (data as MembershipRow[]).map((row): MembershipListItem => ({
       id: row.id,
       userId: row.user_id,
       fullName: getProfileFromMembership(row)?.full_name ?? '-',
       email: getProfileFromMembership(row)?.email ?? '-',
       role: row.role,
+      assignedTeamId: row.assigned_team_id,
+      assignedTeamName: getTeamFromMembership(row)?.name ?? null,
     })),
   }
 }
@@ -67,6 +81,7 @@ export async function getMembershipByIdForCurrentClub(membershipId: string) {
 export async function createMembershipForCurrentClub(input: {
   email: string
   role: UserRole
+  assignedTeamId?: string | null
 }) {
   const permission = await ensureViewerCanManage('memberships')
   const viewer = permission.viewer
@@ -102,6 +117,7 @@ export async function createMembershipForCurrentClub(input: {
     club_id: viewer.club.id,
     user_id: profile.id,
     role: input.role,
+    assigned_team_id: input.role === 'coach' ? input.assignedTeamId ?? null : null,
   })
 
   if (error) {
@@ -125,6 +141,7 @@ export async function createMembershipForCurrentClub(input: {
 export async function updateMembershipForCurrentClub(input: {
   membershipId: string
   role: UserRole
+  assignedTeamId?: string | null
 }) {
   const permission = await ensureViewerCanManage('memberships')
   const viewer = permission.viewer
@@ -144,7 +161,10 @@ export async function updateMembershipForCurrentClub(input: {
   const supabase = createSupabaseAdminClient()
   const { error } = await supabase
     .from('club_memberships')
-    .update({ role: input.role })
+    .update({
+      role: input.role,
+      assigned_team_id: input.role === 'coach' ? input.assignedTeamId ?? null : null,
+    })
     .eq('id', input.membershipId)
     .eq('club_id', viewer.club.id)
 

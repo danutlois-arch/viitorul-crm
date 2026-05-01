@@ -91,6 +91,16 @@ export interface Team {
   teamManager: string
 }
 
+export interface MembershipListItem {
+  id: string
+  userId: string
+  fullName: string
+  email: string
+  role: UserRole
+  assignedTeamId?: string | null
+  assignedTeamName?: string | null
+}
+
 export interface Player {
   id: string
   clubId: string

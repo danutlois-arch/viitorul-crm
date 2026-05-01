@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import {
   createMembershipAction,
   type MembershipFormState,
 } from '@/app/(app)/clubs/memberships-actions'
 import { membershipRoles } from '@/lib/membership-catalog'
+import type { Team } from '@/lib/types'
 
 const initialState: MembershipFormState = {}
 
@@ -28,17 +29,21 @@ function SubmitButton() {
 export function MembershipForm({
   source,
   existingMembership,
+  teams,
 }: {
   source: 'supabase' | 'demo'
   existingMembership?: {
     id: string
     email: string
     role: string
+    assignedTeamId?: string | null
   } | null
+  teams: Pick<Team, 'id' | 'name'>[]
 }) {
   const [state, formAction] = useFormState(createMembershipAction, initialState)
   const formRef = useRef<HTMLFormElement>(null)
   const isEditMode = Boolean(existingMembership)
+  const [selectedRole, setSelectedRole] = useState(existingMembership?.role ?? 'coach')
 
   useEffect(() => {
     if (state.success && !isEditMode) {
@@ -79,6 +84,7 @@ export function MembershipForm({
         <select
           name="role"
           defaultValue={existingMembership?.role ?? 'coach'}
+          onChange={(event) => setSelectedRole(event.target.value)}
           className="w-full rounded-2xl border border-slate-200 px-4 py-3"
         >
           {membershipRoles.map((role) => (
@@ -88,6 +94,27 @@ export function MembershipForm({
           ))}
         </select>
       </div>
+
+      {selectedRole === 'coach' ? (
+        <div className="md:col-span-2">
+          <label className="mb-2 block text-sm font-medium text-slate-700">Grupa / echipa alocată</label>
+          <select
+            name="assignedTeamId"
+            defaultValue={existingMembership?.assignedTeamId ?? ''}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3"
+          >
+            <option value="">Alege grupa antrenorului</option>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-slate-500">
+            Antrenorul va vedea și gestiona doar această grupă în Coach Center.
+          </p>
+        </div>
+      ) : null}
 
       <div className="md:col-span-2 flex items-center justify-between gap-4">
         <div className="space-y-2">
