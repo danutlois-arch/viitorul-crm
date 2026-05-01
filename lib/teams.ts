@@ -21,8 +21,16 @@ interface SupabaseTeamRow {
   head_coach: string | null
   assistant_coach: string | null
   team_manager: string | null
-  team_categories: { label: TeamCategory }[] | null
-  competitions: { label: CompetitionName }[] | null
+  team_categories: { label: TeamCategory } | { label: TeamCategory }[] | null
+  competitions: { label: CompetitionName } | { label: CompetitionName }[] | null
+}
+
+function getLookupLabel<T extends string>(value: { label: T } | { label: T }[] | null | undefined) {
+  if (!value) {
+    return null
+  }
+
+  return Array.isArray(value) ? value[0]?.label ?? null : value.label
 }
 
 function mapTeamRow(row: SupabaseTeamRow): Team {
@@ -30,8 +38,8 @@ function mapTeamRow(row: SupabaseTeamRow): Team {
     id: row.id,
     clubId: row.club_id,
     name: row.name,
-    category: row.team_categories?.[0]?.label ?? 'U19',
-    competition: row.competitions?.[0]?.label ?? 'AJF',
+    category: getLookupLabel(row.team_categories) ?? 'U19',
+    competition: getLookupLabel(row.competitions) ?? 'AJF',
     season: row.season,
     headCoach: row.head_coach ?? '',
     assistantCoach: row.assistant_coach ?? '',
