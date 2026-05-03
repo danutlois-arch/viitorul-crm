@@ -2,6 +2,8 @@
 
 import {
   createCoachTrainingSession,
+  saveCoachMatchSquad,
+  saveCoachMatchSummary,
   saveCoachMatchStat,
   saveCoachTrainingRecord,
 } from '@/lib/coach'
@@ -12,6 +14,11 @@ export interface CoachMatchStatFormState {
 }
 
 export interface CoachTrainingRecordFormState {
+  error?: string
+  success?: string
+}
+
+export interface CoachMatchdayFormState {
   error?: string
   success?: string
 }
@@ -78,6 +85,62 @@ export async function saveCoachTrainingRecordAction(
     playerId,
     status,
     coachRating,
+    notes,
+  })
+
+  return result.ok ? { success: result.message } : { error: result.message }
+}
+
+export async function saveCoachMatchSquadAction(
+  _prevState: CoachMatchdayFormState,
+  formData: FormData
+): Promise<CoachMatchdayFormState> {
+  const matchId = String(formData.get('matchId') ?? '').trim()
+  const playerId = String(formData.get('playerId') ?? '').trim()
+  const calledUp = String(formData.get('calledUp') ?? 'nu').trim() === 'da'
+  const present = String(formData.get('present') ?? 'nu').trim() === 'da'
+  const starter = String(formData.get('starter') ?? 'nu').trim() === 'da'
+  const minutesPlayed = Number(formData.get('minutesPlayed') ?? 0)
+
+  if (!matchId || !playerId) {
+    return { error: 'Lipsesc meciul sau jucătorul pentru fișa jocului.' }
+  }
+
+  const result = await saveCoachMatchSquad({
+    matchId,
+    playerId,
+    calledUp,
+    present,
+    starter,
+    minutesPlayed,
+  })
+
+  return result.ok ? { success: result.message } : { error: result.message }
+}
+
+export async function saveCoachMatchSummaryAction(
+  _prevState: CoachMatchdayFormState,
+  formData: FormData
+): Promise<CoachMatchdayFormState> {
+  const matchId = String(formData.get('matchId') ?? '').trim()
+  const teamScore = Number(formData.get('teamScore') ?? 0)
+  const opponentScore = Number(formData.get('opponentScore') ?? 0)
+  const status = String(formData.get('status') ?? 'programat').trim() as
+    | 'programat'
+    | 'jucat'
+    | 'amanat'
+    | 'anulat'
+  const notes = String(formData.get('notes') ?? '').trim()
+
+  if (!matchId) {
+    return { error: 'Lipsește meciul pentru rezumat.' }
+  }
+
+  const result = await saveCoachMatchSummary({
+    matchId,
+    teamScore,
+    opponentScore,
+    status,
     notes,
   })
 

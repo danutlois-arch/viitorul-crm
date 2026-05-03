@@ -31,6 +31,15 @@ interface CoachAttendanceRow {
   coach_rating: number | null
 }
 
+interface CoachSquadRow {
+  id: string
+  player_id: string
+  called_up: boolean
+  present: boolean
+  starter: boolean
+  minutes_played: number
+}
+
 export function isCoachLockedToCenter(viewer: AppViewer) {
   return viewer.source === 'supabase' && viewer.user.role === 'coach' && Boolean(viewer.user.assignedTeamId)
 }
@@ -154,33 +163,60 @@ export async function getCoachMatchdayData(matchId: string) {
   }
 
   const supabase = createSupabaseAdminClient()
-  const { data } = await supabase
-    .from('player_statistics')
-    .select(
-      `
-        id,
-        player_id,
-        starter,
-        minutes_played,
-        goals,
-        assists,
-        yellow_cards,
-        red_cards,
-        coach_rating,
-        notes,
-        entered_minute,
-        exited_minute
-      `
-    )
-    .eq('club_id', center.viewer.club.id)
-    .eq('match_id', matchId)
+  const [{ data }, { data: squadData }] = await Promise.all([
+    supabase
+      .from('player_statistics')
+      .select(
+        `
+          id,
+          player_id,
+          starter,
+          minutes_played,
+          goals,
+          assists,
+          yellow_cards,
+          red_cards,
+          coach_rating,
+          notes,
+          entered_minute,
+          exited_minute
+        `
+      )
+      .eq('club_id', center.viewer.club.id)
+      .eq('match_id', matchId),
+    supabase
+      .from('match_squads')
+      .select('id, player_id, called_up, present, starter, minutes_played')
+      .eq('club_id', center.viewer.club.id)
+      .eq('match_id', matchId),
+  ])
 
   const statRows = (data as CoachStatRow[] | null) ?? []
+  const squadRows = (squadData as CoachSquadRow[] | null) ?? []
   const statMap = new Map(statRows.map((row) => [row.player_id, row]))
+  const squadMap = new Map(squadRows.map((row) => [row.player_id, row]))
 
   return {
     ...center,
     selectedMatch,
+    matchSummary: {
+      teamScore: selectedMatch.teamScore ?? 0,
+      opponentScore: selectedMatch.opponentScore ?? 0,
+      status: selectedMatch.status,
+      notes: selectedMatch.notes,
+    },
+    squadRows: center.players.map((player) => {
+      const squad = squadMap.get(player.id)
+      return {
+        playerId: player.id,
+        playerName: `${player.firstName} ${player.lastName}`,
+        position: player.position,
+        calledUp: squad?.called_up ?? false,
+        present: squad?.present ?? false,
+        starter: squad?.starter ?? false,
+        minutesPlayed: squad?.minutes_played ?? 0,
+      }
+    }),
     statRows: center.players.map((player) => {
       const stats = statMap.get(player.id)
 
@@ -326,6 +362,127 @@ export async function saveCoachMatchStat(input: {
   return {
     ok: true,
     message: 'Fișa de meci a jucătorului a fost salvată.',
+  }
+}
+
+export async function saveCoachMatchSquad(input: {
+  matchId: string
+  playerId: string
+  calledUp: boolean
+  present: boolean
+  starter: boolean
+  minutesPlayed: number
+}) {
+  const permission = await ensureViewerCanManage('matches')
+  const viewer = permission.viewer
+
+  if (!permission.ok) {
+    return { ok: false, message: permission.message }
+  }
+
+  const center = await getCoachCenterData()
+
+  if (!center.assignedTeam) {
+    return { ok: false, message: 'Antrenorul nu are încă o grupă alocată.' }
+  }
+
+  const match = center.matches.find((entry) => entry.id === input.matchId)
+  const player = center.players.find((entry) => entry.id === input.playerId)
+
+  if (!match || !player) {
+    return {
+      ok: false,
+      message: 'Poți completa fișa jocului doar pentru meciurile și jucătorii grupei tale.',
+    }
+  }
+
+  const supabase = createSupabaseAdminClient()
+  const { error } = await supabase.from('match_squads').upsert(
+    {
+      club_id: viewer.club.id,
+      match_id: input.matchId,
+      player_id: input.playerId,
+      called_up: input.calledUp,
+      present: input.present,
+      starter: input.starter,
+      minutes_played: input.minutesPlayed,
+    },
+    { onConflict: 'match_id,player_id' }
+  )
+
+  if (error) {
+    return {
+      ok: false,
+      message: `Nu am putut salva fișa jocului: ${error.message}`,
+    }
+  }
+
+  revalidatePath('/coach')
+  revalidatePath(`/coach?view=matches&matchId=${input.matchId}`)
+
+  return {
+    ok: true,
+    message: 'Fișa jocului a fost salvată.',
+  }
+}
+
+export async function saveCoachMatchSummary(input: {
+  matchId: string
+  teamScore: number
+  opponentScore: number
+  status: 'programat' | 'jucat' | 'amanat' | 'anulat'
+  notes: string
+}) {
+  const permission = await ensureViewerCanManage('matches')
+  const viewer = permission.viewer
+
+  if (!permission.ok) {
+    return { ok: false, message: permission.message }
+  }
+
+  const center = await getCoachCenterData()
+
+  if (!center.assignedTeam) {
+    return { ok: false, message: 'Antrenorul nu are încă o grupă alocată.' }
+  }
+
+  const match = center.matches.find((entry) => entry.id === input.matchId)
+
+  if (!match) {
+    return {
+      ok: false,
+      message: 'Poți închide doar meciurile grupei alocate antrenorului.',
+    }
+  }
+
+  const supabase = createSupabaseAdminClient()
+  const { error } = await supabase
+    .from('matches')
+    .update({
+      team_score: input.status === 'jucat' ? input.teamScore : null,
+      opponent_score: input.status === 'jucat' ? input.opponentScore : null,
+      status: input.status,
+      notes: input.notes || null,
+    })
+    .eq('id', input.matchId)
+    .eq('club_id', viewer.club.id)
+
+  if (error) {
+    return {
+      ok: false,
+      message: `Nu am putut salva rezumatul de meci: ${error.message}`,
+    }
+  }
+
+  revalidatePath('/coach')
+  revalidatePath(`/coach?view=matches&matchId=${input.matchId}`)
+  revalidatePath('/matches')
+  revalidatePath('/dashboard')
+  revalidatePath('/reports')
+
+  return {
+    ok: true,
+    message: 'Rezumatul de meci a fost actualizat.',
   }
 }
 

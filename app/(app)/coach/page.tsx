@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { CoachMatchStatCard } from '@/components/CoachMatchStatCard'
+import { CoachMatchSummaryForm } from '@/components/CoachMatchSummaryForm'
+import { CoachSquadCard } from '@/components/CoachSquadCard'
 import { CoachTrainingRecordCard } from '@/components/CoachTrainingRecordCard'
 import { CoachTrainingSessionForm } from '@/components/CoachTrainingSessionForm'
 import { DataTable } from '@/components/DataTable'
@@ -15,7 +17,7 @@ import {
 export default async function CoachPage({
   searchParams,
 }: {
-  searchParams?: { matchId?: string; trainingId?: string; view?: string }
+  searchParams?: { matchId?: string; trainingId?: string; view?: string; phase?: string }
 }) {
   const center = await getCoachCenterData()
 
@@ -43,6 +45,12 @@ export default async function CoachPage({
   const selectedMatchId = searchParams?.matchId ?? center.nextMatch?.id ?? ''
   const selectedTrainingId = searchParams?.trainingId ?? center.nextTraining?.id ?? ''
   const currentView = searchParams?.view === 'training' ? 'training' : 'matches'
+  const currentPhase =
+    searchParams?.phase === 'post'
+      ? 'post'
+      : searchParams?.phase === 'live'
+        ? 'live'
+        : 'pre'
   const matchday = selectedMatchId
     ? await getCoachMatchdayData(selectedMatchId)
     : { ...center, selectedMatch: null, statRows: [] }
@@ -148,7 +156,7 @@ export default async function CoachPage({
                 header: 'Matchday',
                 render: (row) => (
                   <Link
-                    href={`/coach?view=matches&matchId=${row.id}`}
+                    href={`/coach?view=matches&phase=pre&matchId=${row.id}`}
                     className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800 transition hover:bg-brand-100"
                   >
                     Deschide meciul
@@ -160,33 +168,86 @@ export default async function CoachPage({
           />
 
           {matchday.selectedMatch ? (
-        <section className="space-y-4 rounded-[2rem] border border-brand-100 bg-white p-6 shadow-card">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.26em] text-brand-600">Matchday Panel</p>
-              <h2 className="mt-3 text-2xl font-semibold text-slate-950">
-                {matchday.selectedMatch.opponent}
-              </h2>
-              <p className="mt-2 text-sm text-slate-500">
-                {matchday.selectedMatch.date} · {matchday.selectedMatch.hour} ·{' '}
-                {matchday.selectedMatch.competition} · {matchday.selectedMatch.location}
-              </p>
-            </div>
-            <div className="rounded-[1.5rem] bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Notează titulari, minute, schimbări, cartonașe și note de joc direct din telefon.
-            </div>
-          </div>
+            <section className="space-y-4 rounded-[2rem] border border-brand-100 bg-white p-6 shadow-card">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.26em] text-brand-600">Matchday Panel</p>
+                  <h2 className="mt-3 text-2xl font-semibold text-slate-950">
+                    {matchday.selectedMatch.opponent}
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {matchday.selectedMatch.date} · {matchday.selectedMatch.hour} ·{' '}
+                    {matchday.selectedMatch.competition} · {matchday.selectedMatch.location}
+                  </p>
+                </div>
+                <div className="rounded-[1.5rem] bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  Flux simplu: înainte de meci, în timpul meciului, după meci.
+                </div>
+              </div>
 
-          <div className="grid gap-4">
-            {matchday.statRows.map((player) => (
-              <CoachMatchStatCard
-                key={player.playerId}
-                matchId={matchday.selectedMatch!.id}
-                player={player}
+              <SegmentedTabs
+                action="/coach"
+                paramName="phase"
+                currentValue={currentPhase}
+                values={{
+                  view: 'matches',
+                  matchId: matchday.selectedMatch.id,
+                  trainingId: searchParams?.trainingId,
+                  phase: searchParams?.phase,
+                }}
+                segments={[
+                  { value: 'pre', label: 'Înainte de meci' },
+                  { value: 'live', label: 'În timpul meciului' },
+                  { value: 'post', label: 'După meci' },
+                ]}
               />
-            ))}
-          </div>
-        </section>
+
+              {currentPhase === 'pre' ? (
+                <section className="space-y-4">
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    Fișa jocului: convocați, prezenți, titulari și verificarea lotului de meci.
+                  </div>
+                  <div className="grid gap-4">
+                    {matchday.squadRows.map((player) => (
+                      <CoachSquadCard
+                        key={player.playerId}
+                        matchId={matchday.selectedMatch.id}
+                        player={player}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {currentPhase === 'live' ? (
+                <section className="space-y-4">
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    Notează rapid minute, schimbări, cartonașe, goluri, assisturi și nota fiecărui jucător.
+                  </div>
+                  <div className="grid gap-4">
+                    {matchday.statRows.map((player) => (
+                      <CoachMatchStatCard
+                        key={player.playerId}
+                        matchId={matchday.selectedMatch.id}
+                        player={player}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {currentPhase === 'post' ? (
+                <section className="space-y-4">
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    Închide partida: scor, status și concluzii scurte pentru raportul de după meci.
+                  </div>
+                  <CoachMatchSummaryForm
+                    matchId={matchday.selectedMatch.id}
+                    summary={matchday.matchSummary}
+                  />
+                </section>
+              ) : null}
+            </section>
           ) : null}
         </>
       ) : (
