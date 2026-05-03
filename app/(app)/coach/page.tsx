@@ -4,6 +4,7 @@ import { CoachMatchStatCard } from '@/components/CoachMatchStatCard'
 import { CoachTrainingRecordCard } from '@/components/CoachTrainingRecordCard'
 import { CoachTrainingSessionForm } from '@/components/CoachTrainingSessionForm'
 import { DataTable } from '@/components/DataTable'
+import { SegmentedTabs } from '@/components/SegmentedTabs'
 import { StatCard } from '@/components/StatCard'
 import {
   getCoachCenterData,
@@ -14,7 +15,7 @@ import {
 export default async function CoachPage({
   searchParams,
 }: {
-  searchParams?: { matchId?: string; trainingId?: string }
+  searchParams?: { matchId?: string; trainingId?: string; view?: string }
 }) {
   const center = await getCoachCenterData()
 
@@ -41,6 +42,7 @@ export default async function CoachPage({
 
   const selectedMatchId = searchParams?.matchId ?? center.nextMatch?.id ?? ''
   const selectedTrainingId = searchParams?.trainingId ?? center.nextTraining?.id ?? ''
+  const currentView = searchParams?.view === 'training' ? 'training' : 'matches'
   const matchday = selectedMatchId
     ? await getCoachMatchdayData(selectedMatchId)
     : { ...center, selectedMatch: null, statRows: [] }
@@ -116,58 +118,48 @@ export default async function CoachPage({
         }))}
       />
 
-      <DataTable
-        title="Meciurile grupei"
-        description="Calendarul meciurilor pe care antrenorul le poate gestiona"
-        columns={[
-          { key: 'date', header: 'Data' },
-          { key: 'competition', header: 'Competiție' },
-          { key: 'opponent', header: 'Adversar' },
-          { key: 'status', header: 'Status' },
-          {
-            key: 'actions',
-            header: 'Matchday',
-            render: (row) => (
-              <Link
-                href={`/coach?matchId=${row.id}`}
-                className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800 transition hover:bg-brand-100"
-              >
-                Deschide meciul
-              </Link>
-            ),
-          },
+      <SegmentedTabs
+        action="/coach"
+        paramName="view"
+        currentValue={currentView}
+        values={{
+          matchId: searchParams?.matchId,
+          trainingId: searchParams?.trainingId,
+          view: searchParams?.view,
+        }}
+        segments={[
+          { value: 'matches', label: 'Zona meciuri' },
+          { value: 'training', label: 'Zona antrenamente' },
         ]}
-        rows={center.matches}
       />
 
-      <CoachTrainingSessionForm />
+      {currentView === 'matches' ? (
+        <>
+          <DataTable
+            title="Meciurile grupei"
+            description="Calendarul meciurilor pe care antrenorul le poate gestiona"
+            columns={[
+              { key: 'date', header: 'Data' },
+              { key: 'competition', header: 'Competiție' },
+              { key: 'opponent', header: 'Adversar' },
+              { key: 'status', header: 'Status' },
+              {
+                key: 'actions',
+                header: 'Matchday',
+                render: (row) => (
+                  <Link
+                    href={`/coach?view=matches&matchId=${row.id}`}
+                    className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800 transition hover:bg-brand-100"
+                  >
+                    Deschide meciul
+                  </Link>
+                ),
+              },
+            ]}
+            rows={center.matches}
+          />
 
-      <DataTable
-        title="Sesiunile grupei"
-        description="Antrenamentele și sesiunile pe care antrenorul le poate nota"
-        columns={[
-          { key: 'date', header: 'Data' },
-          { key: 'hour', header: 'Ora' },
-          { key: 'type', header: 'Tip' },
-          { key: 'location', header: 'Locație' },
-          { key: 'attendanceRate', header: 'Prezență %' },
-          {
-            key: 'actions',
-            header: 'Training',
-            render: (row) => (
-              <Link
-                href={`/coach?trainingId=${row.id}`}
-                className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800 transition hover:bg-brand-100"
-              >
-                Deschide sesiunea
-              </Link>
-            ),
-          },
-        ]}
-        rows={center.attendanceSessions}
-      />
-
-      {matchday.selectedMatch ? (
+          {matchday.selectedMatch ? (
         <section className="space-y-4 rounded-[2rem] border border-brand-100 bg-white p-6 shadow-card">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -195,9 +187,38 @@ export default async function CoachPage({
             ))}
           </div>
         </section>
-      ) : null}
+          ) : null}
+        </>
+      ) : (
+        <>
+          <CoachTrainingSessionForm />
 
-      {training.selectedTraining ? (
+          <DataTable
+            title="Sesiunile grupei"
+            description="Antrenamentele și sesiunile pe care antrenorul le poate nota"
+            columns={[
+              { key: 'date', header: 'Data' },
+              { key: 'hour', header: 'Ora' },
+              { key: 'type', header: 'Tip' },
+              { key: 'location', header: 'Locație' },
+              { key: 'attendanceRate', header: 'Prezență %' },
+              {
+                key: 'actions',
+                header: 'Training',
+                render: (row) => (
+                  <Link
+                    href={`/coach?view=training&trainingId=${row.id}`}
+                    className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800 transition hover:bg-brand-100"
+                  >
+                    Deschide sesiunea
+                  </Link>
+                ),
+              },
+            ]}
+            rows={center.attendanceSessions}
+          />
+
+          {training.selectedTraining ? (
         <section className="space-y-4 rounded-[2rem] border border-brand-100 bg-white p-6 shadow-card">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -225,7 +246,9 @@ export default async function CoachPage({
             ))}
           </div>
         </section>
-      ) : null}
+          ) : null}
+        </>
+      )}
     </div>
   )
 }
