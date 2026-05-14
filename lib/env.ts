@@ -3,11 +3,22 @@ function getTrimmedEnvValue(value?: string) {
   return trimmed ? trimmed : null
 }
 
-export function isSupabaseConfigured() {
+export function isSupabaseAuthConfigured() {
   return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    getTrimmedEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+      getTrimmedEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
   )
+}
+
+export function isSupabaseAdminConfigured() {
+  return Boolean(
+    isSupabaseAuthConfigured() &&
+      getTrimmedEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY)
+  )
+}
+
+export function isSupabaseConfigured() {
+  return isSupabaseAdminConfigured()
 }
 
 export function getPublicAppUrl() {

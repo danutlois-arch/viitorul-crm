@@ -1,6 +1,11 @@
 import { isEmailConfigured } from '@/lib/email'
 import { APP_NAME, DEFAULT_CLUB_NAME, DEFAULT_SEASON } from '@/lib/app-config'
-import { getPublicAppUrl, isSecurePublicAppUrl, isSupabaseConfigured } from '@/lib/env'
+import {
+  getPublicAppUrl,
+  isSecurePublicAppUrl,
+  isSupabaseAdminConfigured,
+  isSupabaseAuthConfigured,
+} from '@/lib/env'
 import { isStripeConfigured } from '@/lib/stripe'
 
 type ReadinessTone = 'ready' | 'attention'
@@ -26,16 +31,16 @@ export function getLaunchReadiness() {
       id: 'supabase-core',
       label: 'Supabase de bază',
       description: 'URL-ul proiectului și cheia anon sunt configurate pentru aplicație.',
-      ready: isSupabaseConfigured(),
-      tone: isSupabaseConfigured() ? 'ready' : 'attention',
+      ready: isSupabaseAuthConfigured(),
+      tone: isSupabaseAuthConfigured() ? 'ready' : 'attention',
       recommendation: 'Completează NEXT_PUBLIC_SUPABASE_URL și NEXT_PUBLIC_SUPABASE_ANON_KEY.',
     },
     {
       id: 'supabase-service',
       label: 'Service role pentru job-uri',
       description: 'Cheia service role este necesară pentru cron, audit și automatizări.',
-      ready: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-      tone: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'ready' : 'attention',
+      ready: isSupabaseAdminConfigured(),
+      tone: isSupabaseAdminConfigured() ? 'ready' : 'attention',
       recommendation: 'Adaugă SUPABASE_SERVICE_ROLE_KEY doar în mediile server-side.',
     },
     {

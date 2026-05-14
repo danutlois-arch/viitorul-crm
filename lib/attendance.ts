@@ -3,7 +3,10 @@ import { logClubActivity } from '@/lib/activity-log'
 import { getAppViewer } from '@/lib/auth'
 import { attendanceSessions as demoAttendance } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
-import { ensureViewerCanManage } from '@/lib/permissions'
+import {
+  ensureViewerCanManage,
+  ensureViewerCanManageTeamResource,
+} from '@/lib/permissions'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { AttendanceSession } from '@/lib/types'
 
@@ -53,7 +56,9 @@ export async function getAttendanceForCurrentClub() {
     .order('session_date', { ascending: false })
 
   if (error || !data) {
-    return []
+    throw new Error(
+      `Nu am putut încărca sesiunile de prezență din Supabase: ${error?.message ?? 'răspuns gol'}`
+    )
   }
 
   return data.map((row) => {
@@ -84,7 +89,11 @@ export async function createAttendanceSessionForCurrentClub(input: {
   hour: string
   location: string
 }) {
-  const permission = await ensureViewerCanManage('attendance')
+  const permission = await ensureViewerCanManageTeamResource(
+    'attendance',
+    input.teamId,
+    'grupa selectată pentru sesiunea de prezență'
+  )
   const viewer = permission.viewer
 
   if (!permission.ok) {
@@ -151,6 +160,41 @@ export async function updateAttendanceSessionForCurrentClub(input: {
   }
 
   const supabase = createSupabaseAdminClient()
+  const { data: existingSession, error: existingSessionError } = await supabase
+    .from('attendance_sessions')
+    .select('team_id')
+    .eq('id', input.sessionId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingSessionError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica sesiunea înainte de actualizare: ${existingSessionError.message}`,
+    }
+  }
+
+  if (!existingSession?.team_id) {
+    return { ok: false, message: 'Sesiunea selectată nu există în clubul curent.' }
+  }
+
+  const scopePermission = await ensureViewerCanManageTeamResource(
+    'attendance',
+    existingSession.team_id,
+    'grupa sesiunii de prezență'
+  )
+
+  if (!scopePermission.ok) {
+    return { ok: false, message: scopePermission.message }
+  }
+
+  if (viewer.user.role === 'coach' && input.teamId !== existingSession.team_id) {
+    return {
+      ok: false,
+      message: 'Antrenorul nu poate muta sesiunea de prezență în altă grupă decât cea alocată lui.',
+    }
+  }
+
   const { error } = await supabase
     .from('attendance_sessions')
     .update({
@@ -197,6 +241,34 @@ export async function deleteAttendanceSessionForCurrentClub(sessionId: string) {
   }
 
   const supabase = createSupabaseAdminClient()
+  const { data: existingSession, error: existingSessionError } = await supabase
+    .from('attendance_sessions')
+    .select('team_id')
+    .eq('id', sessionId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingSessionError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica sesiunea înainte de ștergere: ${existingSessionError.message}`,
+    }
+  }
+
+  if (!existingSession?.team_id) {
+    return { ok: false, message: 'Sesiunea selectată nu există în clubul curent.' }
+  }
+
+  const scopePermission = await ensureViewerCanManageTeamResource(
+    'attendance',
+    existingSession.team_id,
+    'grupa sesiunii de prezență'
+  )
+
+  if (!scopePermission.ok) {
+    return { ok: false, message: scopePermission.message }
+  }
+
   const { error } = await supabase
     .from('attendance_sessions')
     .delete()

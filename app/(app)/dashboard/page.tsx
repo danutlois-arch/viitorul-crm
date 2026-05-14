@@ -62,8 +62,16 @@ export default async function DashboardPage() {
 
         <StatCard
           title="Top marcator club"
-          value={`${dashboard.topScorer.firstName} ${dashboard.topScorer.lastName}`}
-          description={`${dashboard.topScorer.goals} goluri în sezonul curent`}
+          value={
+            dashboard.topScorer
+              ? `${dashboard.topScorer.firstName} ${dashboard.topScorer.lastName}`
+              : 'Fără date'
+          }
+          description={
+            dashboard.topScorer
+              ? `${dashboard.topScorer.goals} goluri în sezonul curent`
+              : 'Nu există încă statistici live pentru club'
+          }
           accent="green"
         />
       </section>
@@ -156,10 +164,12 @@ export default async function DashboardPage() {
           <div className="mt-5 rounded-3xl bg-brand-50 p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-brand-700">Contribuție principală</p>
             <h3 className="mt-3 text-lg font-semibold text-slate-950">
-              {dashboard.topContribution.contributorName}
+              {dashboard.topContribution?.contributorName ?? 'Fără contribuții'}
             </h3>
             <p className="mt-1 text-sm text-slate-600">
-              {dashboard.topContribution.type} · {formatCurrency(dashboard.topContribution.amount)}
+              {dashboard.topContribution
+                ? `${dashboard.topContribution.type} · ${formatCurrency(dashboard.topContribution.amount)}`
+                : 'Nu există încă donații sau sponsorizări înregistrate'}
             </p>
             <p className="mt-3 text-sm text-slate-500">
               Contribuții externe confirmate: {formatCurrency(dashboard.summary.onlineContributions)}

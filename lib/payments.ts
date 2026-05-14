@@ -145,13 +145,20 @@ export async function getPaymentsForCurrentClub() {
   ])
 
   if (paymentsError || !paymentRows) {
-    return buildPaymentView([], playerData.players, [])
+    throw new Error(
+      `Nu am putut încărca plățile clubului din Supabase: ${paymentsError?.message ?? 'răspuns gol'}`
+    )
   }
 
-  const mappedContributions =
-    !contributionsError && contributionRows
-      ? (contributionRows as SupabaseContributionRow[]).map(mapContributionRow)
-      : []
+  if (contributionsError) {
+    throw new Error(
+      `Nu am putut încărca contribuțiile clubului din Supabase: ${contributionsError.message}`
+    )
+  }
+
+  const mappedContributions = contributionRows
+    ? (contributionRows as SupabaseContributionRow[]).map(mapContributionRow)
+    : []
 
   return buildPaymentView(
     (paymentRows as SupabasePaymentRow[]).map(mapPaymentRow),

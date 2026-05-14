@@ -3,7 +3,10 @@ import { logClubActivity } from '@/lib/activity-log'
 import { getAppViewer } from '@/lib/auth'
 import { players as demoPlayers, teams as demoTeams } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
-import { ensureViewerCanManage } from '@/lib/permissions'
+import {
+  ensureViewerCanManage,
+  ensureViewerCanManageTeamResource,
+} from '@/lib/permissions'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { Player, PlayerStatus, Team } from '@/lib/types'
 import { calculateAge } from '@/lib/utils'
@@ -128,7 +131,9 @@ export async function getTeamsForCurrentClub() {
     .order('name')
 
   if (error || !data) {
-    return []
+    throw new Error(
+      `Nu am putut încărca echipele pentru lotul clubului: ${error?.message ?? 'răspuns gol'}`
+    )
   }
 
   return (data as SupabaseTeamRow[]).map(mapTeamRow)
@@ -190,19 +195,9 @@ export async function getPlayersForCurrentClub() {
     .order('first_name')
 
   if (error || !data) {
-    return {
-      players: [],
-      rows: [] as {
-        id: string
-        teamId: string
-        name: string
-        team: string
-        age: number
-        position: string
-        status: PlayerStatus
-        goals: number
-      }[],
-    }
+    throw new Error(
+      `Nu am putut încărca jucătorii clubului din Supabase: ${error?.message ?? 'răspuns gol'}`
+    )
   }
 
   const mappedPlayers = (data as SupabasePlayerRow[]).map(mapPlayerRow)
@@ -239,7 +234,11 @@ export async function createPlayerForCurrentClub(input: {
   guardianName: string
   profileImageUrl?: string
 }) {
-  const permission = await ensureViewerCanManage('players')
+  const permission = await ensureViewerCanManageTeamResource(
+    'players',
+    input.teamId,
+    'grupa selectată pentru jucător'
+  )
   const viewer = permission.viewer
 
   if (!permission.ok) {
@@ -314,6 +313,41 @@ export async function updatePlayerForCurrentClub(input: {
   }
 
   const supabase = createSupabaseAdminClient()
+  const { data: existingPlayer, error: existingPlayerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', input.playerId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingPlayerError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica echipa jucătorului înainte de actualizare: ${existingPlayerError.message}`,
+    }
+  }
+
+  if (!existingPlayer?.team_id) {
+    return { ok: false, message: 'Jucătorul selectat nu există în clubul curent.' }
+  }
+
+  const scopePermission = await ensureViewerCanManageTeamResource(
+    'players',
+    existingPlayer.team_id,
+    'grupa actuală a jucătorului'
+  )
+
+  if (!scopePermission.ok) {
+    return { ok: false, message: scopePermission.message }
+  }
+
+  if (viewer.user.role === 'coach' && input.teamId !== existingPlayer.team_id) {
+    return {
+      ok: false,
+      message: 'Antrenorul nu poate muta jucătorul în altă grupă decât cea alocată lui.',
+    }
+  }
+
   const { error } = await supabase
     .from('players')
     .update({
@@ -366,6 +400,34 @@ export async function deletePlayerForCurrentClub(playerId: string) {
   }
 
   const supabase = createSupabaseAdminClient()
+  const { data: existingPlayer, error: existingPlayerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', playerId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingPlayerError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica echipa jucătorului înainte de ștergere: ${existingPlayerError.message}`,
+    }
+  }
+
+  if (!existingPlayer?.team_id) {
+    return { ok: false, message: 'Jucătorul selectat nu există în clubul curent.' }
+  }
+
+  const scopePermission = await ensureViewerCanManageTeamResource(
+    'players',
+    existingPlayer.team_id,
+    'grupa jucătorului'
+  )
+
+  if (!scopePermission.ok) {
+    return { ok: false, message: scopePermission.message }
+  }
+
   const { error } = await supabase
     .from('players')
     .delete()

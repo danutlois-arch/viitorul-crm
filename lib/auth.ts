@@ -1,5 +1,5 @@
 import { currentClub, currentUser } from '@/lib/demo-data'
-import { isSupabaseConfigured } from '@/lib/env'
+import { isSupabaseAdminConfigured, isSupabaseAuthConfigured } from '@/lib/env'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { Club, UserRole } from '@/lib/types'
@@ -14,6 +14,13 @@ export interface AppViewer {
     assignedTeamId?: string | null
   }
   source: 'supabase' | 'demo'
+}
+
+export class ViewerResolutionError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ViewerResolutionError'
+  }
 }
 
 function buildViewerWithDemoClub(input: {
@@ -42,7 +49,7 @@ function buildViewerWithDemoClub(input: {
 }
 
 export async function getAppViewer(): Promise<AppViewer> {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseAuthConfigured()) {
     return buildViewerWithDemoClub({
       userId: currentUser.id,
       fullName: currentUser.fullName,
@@ -58,11 +65,18 @@ export async function getAppViewer(): Promise<AppViewer> {
 
   if (!user) {
     return buildViewerWithDemoClub({
-      userId: currentUser.id,
+      userId: undefined,
       fullName: currentUser.fullName,
       role: currentUser.role,
       source: 'demo',
     })
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    console.error('Supabase admin backend is not ready for authenticated viewer resolution.')
+    throw new ViewerResolutionError(
+      'Autentificarea este activă, dar backend-ul administrativ Supabase nu este configurat complet. Verifică service role-ul și setup-ul server-side.'
+    )
   }
 
   const admin = createSupabaseAdminClient()
@@ -79,94 +93,61 @@ export async function getAppViewer(): Promise<AppViewer> {
       .limit(1),
   ])
 
-  const [memberProfileResult, memberMembershipResult] =
-    !adminProfileResult.data && !adminMembershipResult.data?.length
-      ? await Promise.all([
-          supabase
-            .from('profiles')
-            .select('full_name, email, club_id')
-            .eq('id', user.id)
-            .maybeSingle(),
-          supabase
-            .from('club_memberships')
-            .select('role, club_id, assigned_team_id')
-            .eq('user_id', user.id)
-            .limit(1),
-        ])
-      : [{ data: null }, { data: null }]
+  if (adminProfileResult.error) {
+    console.error('Failed to load authenticated profile with admin client', adminProfileResult.error)
+    throw new ViewerResolutionError(
+      'Nu am putut încărca profilul utilizatorului din Supabase. Verifică grants-urile și permisiunile backend.'
+    )
+  }
 
-  const profile = adminProfileResult.data ?? memberProfileResult.data ?? null
-  const memberships = adminMembershipResult.data?.length
-    ? adminMembershipResult.data
-    : memberMembershipResult.data?.length
-      ? memberMembershipResult.data
-      : []
+  if (adminMembershipResult.error) {
+    console.error(
+      'Failed to load authenticated memberships with admin client',
+      adminMembershipResult.error
+    )
+    throw new ViewerResolutionError(
+      'Nu am putut încărca membership-ul utilizatorului din Supabase. Verifică grants-urile și permisiunile backend.'
+    )
+  }
+
+  const profile = adminProfileResult.data ?? null
+  const memberships = adminMembershipResult.data?.length ? adminMembershipResult.data : []
 
   const activeClubId = profile?.club_id ?? memberships?.[0]?.club_id ?? null
   const hasRealMembership = Boolean(activeClubId && (profile || memberships.length))
-
-  const clubResult = activeClubId
-    ? await admin
-        .from('clubs')
-        .select(
-          'id, name, cui, city, county, logo_url, email, phone, address, website, social_media, subscription_status, theme_key'
-        )
-        .eq('id', activeClubId)
-        .maybeSingle()
-    : { data: null, error: null }
-
-  const memberClubResult =
-    !clubResult.data && activeClubId
-      ? await supabase
-          .from('clubs')
-          .select(
-            'id, name, cui, city, county, logo_url, email, phone, address, website, social_media, subscription_status, theme_key'
-          )
-          .eq('id', activeClubId)
-          .maybeSingle()
-      : { data: null, error: null }
-
-  const club = clubResult.data ?? memberClubResult.data ?? null
 
   const fallbackRole = (memberships?.[0]?.role as UserRole | undefined) ?? 'player'
   const fallbackAssignedTeamId = memberships?.[0]?.assigned_team_id ?? null
   const fallbackFullName = profile?.full_name ?? user.email ?? currentUser.fullName
   const fallbackEmail = profile?.email ?? user.email
 
-  if (!club && hasRealMembership) {
-    return buildViewerWithDemoClub({
-      userId: user.id,
-      fullName: fallbackFullName,
-      role: fallbackRole,
-      email: fallbackEmail,
-      clubId: activeClubId ?? currentClub.id,
-      source: 'supabase',
-      assignedTeamId: fallbackAssignedTeamId,
-    })
+  if (!hasRealMembership) {
+    throw new ViewerResolutionError(
+      'Contul autentificat nu este asociat corect la niciun club. Creează profilul și membership-ul înainte de testarea internă.'
+    )
   }
 
-  if (!hasRealMembership) {
-    return buildViewerWithDemoClub({
-      userId: user.id,
-      fullName: fallbackFullName,
-      role: fallbackRole,
-      email: fallbackEmail,
-      clubId: activeClubId ?? currentClub.id,
-      source: 'demo',
-      assignedTeamId: fallbackAssignedTeamId,
-    })
+  const clubResult = await admin
+    .from('clubs')
+    .select(
+      'id, name, cui, city, county, logo_url, email, phone, address, website, social_media, subscription_status, theme_key'
+    )
+    .eq('id', activeClubId)
+    .maybeSingle()
+
+  if (clubResult.error) {
+    console.error('Failed to load active club with admin client', clubResult.error)
+    throw new ViewerResolutionError(
+      'Membership-ul există, dar clubul live nu a putut fi încărcat din Supabase. Aplicația a oprit accesul pentru a evita o stare demo/live mixtă.'
+    )
   }
+
+  const club = clubResult.data
 
   if (!club) {
-    return buildViewerWithDemoClub({
-      userId: user.id,
-      fullName: fallbackFullName,
-      role: fallbackRole,
-      email: fallbackEmail,
-      clubId: activeClubId ?? currentClub.id,
-      source: 'supabase',
-      assignedTeamId: fallbackAssignedTeamId,
-    })
+    throw new ViewerResolutionError(
+      'Membership-ul există, dar clubul live lipsește sau nu este accesibil. Verifică datele din tabela clubs înainte de test.'
+    )
   }
 
   return {

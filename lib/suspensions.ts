@@ -4,9 +4,12 @@ import { getAppViewer } from '@/lib/auth'
 import { matches as demoMatches, players as demoPlayers, suspensions as demoSuspensions } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { getMatchesForCurrentClub } from '@/lib/matches'
-import { ensureViewerCanManage } from '@/lib/permissions'
+import {
+  ensureViewerCanManage,
+  ensureViewerWithinAssignedTeamScope,
+} from '@/lib/permissions'
 import { getPlayersForCurrentClub } from '@/lib/players'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { Suspension } from '@/lib/types'
 
 interface SupabaseSuspensionRow {
@@ -40,7 +43,7 @@ export async function getSuspensionsForCurrentClub() {
     return demoSuspensions
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   const { data, error } = await supabase
     .from('suspensions')
     .select(
@@ -59,7 +62,9 @@ export async function getSuspensionsForCurrentClub() {
     .order('start_date', { ascending: false })
 
   if (error || !data) {
-    return demoSuspensions
+    throw new Error(
+      `Nu am putut încărca suspendările clubului din Supabase: ${error?.message ?? 'răspuns gol'}`
+    )
   }
 
   return (data as SupabaseSuspensionRow[]).map(mapSuspensionRow)
@@ -72,8 +77,8 @@ export async function getSuspensionDashboardForCurrentClub() {
     getMatchesForCurrentClub(),
   ])
 
-  const players = playerData.players.length ? playerData.players : demoPlayers
-  const activeMatches = matches.length ? matches : demoMatches
+  const players = suspensions === demoSuspensions ? (playerData.players.length ? playerData.players : demoPlayers) : playerData.players
+  const activeMatches = suspensions === demoSuspensions ? (matches.length ? matches : demoMatches) : matches
 
   const rows = suspensions.map((suspension) => {
     const player = players.find((item) => item.id === suspension.playerId)
@@ -133,7 +138,62 @@ export async function createSuspensionForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
+  const { data: playerRow, error: playerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', input.playerId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (playerError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica jucătorul pentru suspendare: ${playerError.message}`,
+    }
+  }
+
+  if (!playerRow?.team_id) {
+    return { ok: false, message: 'Jucătorul selectat nu există în clubul curent.' }
+  }
+
+  const playerScope = ensureViewerWithinAssignedTeamScope(
+    viewer,
+    playerRow.team_id,
+    'grupa jucătorului suspendat'
+  )
+
+  if (!playerScope.ok) {
+    return { ok: false, message: playerScope.message }
+  }
+
+  if (input.matchId) {
+    const { data: matchRow, error: matchError } = await supabase
+      .from('matches')
+      .select('team_id')
+      .eq('id', input.matchId)
+      .eq('club_id', viewer.club.id)
+      .maybeSingle()
+
+    if (matchError) {
+      return {
+        ok: false,
+        message: `Nu am putut verifica meciul pentru suspendare: ${matchError.message}`,
+      }
+    }
+
+    if (!matchRow?.team_id) {
+      return { ok: false, message: 'Meciul selectat nu există în clubul curent.' }
+    }
+
+    if (matchRow.team_id !== playerRow.team_id) {
+      return {
+        ok: false,
+        message: 'Meciul și jucătorul selectat pentru suspendare nu aparțin aceleiași grupe.',
+      }
+    }
+  }
+
   const { error } = await supabase.from('suspensions').insert({
     club_id: viewer.club.id,
     player_id: input.playerId,
@@ -190,7 +250,108 @@ export async function updateSuspensionForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
+  const { data: existingSuspension, error: existingSuspensionError } = await supabase
+    .from('suspensions')
+    .select('player_id')
+    .eq('id', input.suspensionId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingSuspensionError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica suspendarea înainte de actualizare: ${existingSuspensionError.message}`,
+    }
+  }
+
+  if (!existingSuspension?.player_id) {
+    return { ok: false, message: 'Suspendarea selectată nu există în clubul curent.' }
+  }
+
+  const { data: existingPlayer, error: existingPlayerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', existingSuspension.player_id)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingPlayerError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica grupa suspendării înainte de actualizare: ${existingPlayerError.message}`,
+    }
+  }
+
+  if (!existingPlayer?.team_id) {
+    return { ok: false, message: 'Jucătorul asociat suspendării nu mai există în clubul curent.' }
+  }
+
+  const existingScope = ensureViewerWithinAssignedTeamScope(
+    viewer,
+    existingPlayer.team_id,
+    'grupa suspendării'
+  )
+
+  if (!existingScope.ok) {
+    return { ok: false, message: existingScope.message }
+  }
+
+  const { data: playerRow, error: playerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', input.playerId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (playerError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica jucătorul pentru actualizarea suspendării: ${playerError.message}`,
+    }
+  }
+
+  if (!playerRow?.team_id) {
+    return { ok: false, message: 'Jucătorul selectat nu există în clubul curent.' }
+  }
+
+  const playerScope = ensureViewerWithinAssignedTeamScope(
+    viewer,
+    playerRow.team_id,
+    'grupa suspendării'
+  )
+
+  if (!playerScope.ok) {
+    return { ok: false, message: playerScope.message }
+  }
+
+  if (input.matchId) {
+    const { data: matchRow, error: matchError } = await supabase
+      .from('matches')
+      .select('team_id')
+      .eq('id', input.matchId)
+      .eq('club_id', viewer.club.id)
+      .maybeSingle()
+
+    if (matchError) {
+      return {
+        ok: false,
+        message: `Nu am putut verifica meciul pentru actualizarea suspendării: ${matchError.message}`,
+      }
+    }
+
+    if (!matchRow?.team_id) {
+      return { ok: false, message: 'Meciul selectat nu există în clubul curent.' }
+    }
+
+    if (matchRow.team_id !== playerRow.team_id) {
+      return {
+        ok: false,
+        message: 'Meciul și jucătorul selectat pentru suspendare nu aparțin aceleiași grupe.',
+      }
+    }
+  }
+
   const { error } = await supabase
     .from('suspensions')
     .update({
@@ -242,7 +403,53 @@ export async function deleteSuspensionForCurrentClub(suspensionId: string) {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
+  const { data: existingSuspension, error: existingSuspensionError } = await supabase
+    .from('suspensions')
+    .select('player_id')
+    .eq('id', suspensionId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingSuspensionError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica suspendarea înainte de ștergere: ${existingSuspensionError.message}`,
+    }
+  }
+
+  if (!existingSuspension?.player_id) {
+    return { ok: false, message: 'Suspendarea selectată nu există în clubul curent.' }
+  }
+
+  const { data: existingPlayer, error: existingPlayerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', existingSuspension.player_id)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingPlayerError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica grupa suspendării înainte de ștergere: ${existingPlayerError.message}`,
+    }
+  }
+
+  if (!existingPlayer?.team_id) {
+    return { ok: false, message: 'Jucătorul asociat suspendării nu mai există în clubul curent.' }
+  }
+
+  const scopePermission = ensureViewerWithinAssignedTeamScope(
+    viewer,
+    existingPlayer.team_id,
+    'grupa suspendării'
+  )
+
+  if (!scopePermission.ok) {
+    return { ok: false, message: scopePermission.message }
+  }
+
   const { error } = await supabase
     .from('suspensions')
     .delete()

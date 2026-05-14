@@ -45,7 +45,7 @@ export async function logClubActivity(input: {
   }
 
   const supabase = createSupabaseAdminClient()
-  await supabase.from('activity_logs').insert({
+  const { error } = await supabase.from('activity_logs').insert({
     club_id: viewer.club.id,
     actor_user_id: null,
     actor_name: viewer.user.fullName,
@@ -55,6 +55,10 @@ export async function logClubActivity(input: {
     entity_label: input.entityLabel,
     details: input.details ?? null,
   })
+
+  if (error) {
+    console.error('Failed to write activity log entry', error)
+  }
 
   revalidatePath('/clubs')
 }
@@ -68,7 +72,7 @@ export async function getRecentActivityForCurrentClub(limit = 8) {
 
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceRoleKey) {
-    return []
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY lipsește, deci jurnalul de activitate live nu poate fi încărcat.')
   }
 
   const supabase = createSupabaseAdminClient()
@@ -80,7 +84,9 @@ export async function getRecentActivityForCurrentClub(limit = 8) {
     .limit(limit)
 
   if (error || !data) {
-    return []
+    throw new Error(
+      `Nu am putut încărca jurnalul de activitate din Supabase: ${error?.message ?? 'răspuns gol'}`
+    )
   }
 
   return data as ActivityRow[]

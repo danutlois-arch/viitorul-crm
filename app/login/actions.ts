@@ -1,12 +1,30 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { isSupabaseConfigured } from '@/lib/env'
+import { isSupabaseAuthConfigured } from '@/lib/env'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export interface LoginActionState {
   error?: string
   success?: string
+}
+
+function mapLoginErrorMessage(message: string) {
+  const normalized = message.toLowerCase()
+
+  if (normalized.includes('invalid login credentials')) {
+    return 'Emailul sau parola sunt incorecte.'
+  }
+
+  if (normalized.includes('email not confirmed')) {
+    return 'Contul nu este încă confirmat. Verifică emailul sau confirmă utilizatorul din Supabase.'
+  }
+
+  if (normalized.includes('too many requests')) {
+    return 'Au fost prea multe încercări de autentificare. Încearcă din nou în câteva minute.'
+  }
+
+  return 'Autentificarea nu a putut fi finalizată momentan. Încearcă din nou.'
 }
 
 export async function loginAction(
@@ -20,7 +38,7 @@ export async function loginAction(
     return { error: 'Completează emailul și parola.' }
   }
 
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseAuthConfigured()) {
     return {
       error:
         'Adaugă variabilele NEXT_PUBLIC_SUPABASE_URL și NEXT_PUBLIC_SUPABASE_ANON_KEY în .env.local pentru autentificarea reală.',
@@ -34,8 +52,13 @@ export async function loginAction(
   })
 
   if (error) {
+    console.error('Supabase login failed', {
+      email,
+      message: error.message,
+    })
+
     return {
-      error: `Autentificare eșuată: ${error.message}`,
+      error: mapLoginErrorMessage(error.message),
     }
   }
 
@@ -43,7 +66,7 @@ export async function loginAction(
 }
 
 export async function logoutAction() {
-  if (isSupabaseConfigured()) {
+  if (isSupabaseAuthConfigured()) {
     const supabase = createSupabaseServerClient()
     await supabase.auth.signOut()
   }

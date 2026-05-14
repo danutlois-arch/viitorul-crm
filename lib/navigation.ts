@@ -1,5 +1,6 @@
 export const navigation = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/coach', label: 'Coach Center' },
   { href: '/clubs', label: 'Cluburi' },
   { href: '/teams', label: 'Echipe' },
   { href: '/players', label: 'Jucători' },

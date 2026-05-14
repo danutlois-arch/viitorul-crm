@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation'
 import { LoginForm } from '@/components/LoginForm'
 import { APP_NAME } from '@/lib/app-config'
-import { isSupabaseConfigured } from '@/lib/env'
+import { isSupabaseAuthConfigured } from '@/lib/env'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export default async function LoginPage() {
-  if (isSupabaseConfigured()) {
+  if (isSupabaseAuthConfigured()) {
     const supabase = createSupabaseServerClient()
     const {
       data: { session },

@@ -1,9 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
-import { isSupabaseConfigured } from '@/lib/env'
+import { isSupabaseAuthConfigured } from '@/lib/env'
 
 export async function updateSession(request: NextRequest) {
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseAuthConfigured()) {
     return NextResponse.next({
       request,
     })

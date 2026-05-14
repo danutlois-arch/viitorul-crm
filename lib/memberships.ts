@@ -16,9 +16,16 @@ interface MembershipRow {
     | {
         full_name: string
         email: string
+      }
+    | {
+        full_name: string
+        email: string
       }[]
     | null
   teams:
+    | {
+        name: string
+      }
     | {
         name: string
       }[]
@@ -26,11 +33,19 @@ interface MembershipRow {
 }
 
 function getProfileFromMembership(row: MembershipRow) {
-  return Array.isArray(row.profiles) ? row.profiles[0] : null
+  if (!row.profiles) {
+    return null
+  }
+
+  return Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles
 }
 
 function getTeamFromMembership(row: MembershipRow) {
-  return Array.isArray(row.teams) ? row.teams[0] : null
+  if (!row.teams) {
+    return null
+  }
+
+  return Array.isArray(row.teams) ? row.teams[0] ?? null : row.teams
 }
 
 export async function getMembershipsForCurrentClub() {
@@ -57,7 +72,9 @@ export async function getMembershipsForCurrentClub() {
     .order('created_at', { ascending: false })
 
   if (error || !data) {
-    return { rows: [] }
+    throw new Error(
+      `Nu am putut încărca membership-urile clubului din Supabase: ${error?.message ?? 'răspuns gol'}`
+    )
   }
 
   return {

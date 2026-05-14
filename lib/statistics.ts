@@ -4,9 +4,12 @@ import { getAppViewer } from '@/lib/auth'
 import { matches as demoMatches, players as demoPlayers } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
 import { getMatchesForCurrentClub } from '@/lib/matches'
-import { ensureViewerCanManage } from '@/lib/permissions'
+import {
+  ensureViewerCanManage,
+  ensureViewerWithinAssignedTeamScope,
+} from '@/lib/permissions'
 import { getPlayersForCurrentClub } from '@/lib/players'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
 interface SupabaseStatisticRow {
   id: string
@@ -47,14 +50,16 @@ export async function getStatisticsForCurrentClub() {
     getMatchesForCurrentClub(),
     getAppViewer(),
   ])
-  const players = playerData.players.length ? playerData.players : demoPlayers
-  const activeMatches = matches.length ? matches : demoMatches
+  const players =
+    viewer.source === 'demo' ? (playerData.players.length ? playerData.players : demoPlayers) : playerData.players
+  const activeMatches =
+    viewer.source === 'demo' ? (matches.length ? matches : demoMatches) : matches
 
-  let entries = createDemoEntries(players)
+  let entries = viewer.source === 'demo' ? createDemoEntries(players) : []
 
   if (isSupabaseConfigured() && viewer.source !== 'demo') {
-    const supabase = createSupabaseServerClient()
-    const { data } = await supabase
+    const supabase = createSupabaseAdminClient()
+    const { data, error } = await supabase
       .from('player_statistics')
       .select(
         `
@@ -72,6 +77,10 @@ export async function getStatisticsForCurrentClub() {
         `
       )
       .eq('club_id', viewer.club.id)
+
+    if (error) {
+      throw new Error(`Nu am putut încărca statisticile clubului din Supabase: ${error.message}`)
+    }
 
     if (data?.length) {
       entries = (data as SupabaseStatisticRow[]).map((entry) => {
@@ -153,7 +162,49 @@ export async function createStatisticEntryForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
+  const { data: playerRow, error: playerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', input.playerId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  const { data: matchRow, error: matchError } = await supabase
+    .from('matches')
+    .select('team_id')
+    .eq('id', input.matchId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (playerError || matchError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica echipa pentru statistica de meci: ${playerError?.message ?? matchError?.message}`,
+    }
+  }
+
+  if (!playerRow?.team_id || !matchRow?.team_id) {
+    return { ok: false, message: 'Meciul sau jucătorul selectat nu există în clubul curent.' }
+  }
+
+  if (playerRow.team_id !== matchRow.team_id) {
+    return {
+      ok: false,
+      message: 'Jucătorul și meciul selectat nu aparțin aceleiași grupe.',
+    }
+  }
+
+  const scopePermission = ensureViewerWithinAssignedTeamScope(
+    viewer,
+    playerRow.team_id,
+    'grupa meciului'
+  )
+
+  if (!scopePermission.ok) {
+    return { ok: false, message: scopePermission.message }
+  }
+
   const { error } = await supabase.from('player_statistics').insert({
     club_id: viewer.club.id,
     match_id: input.matchId,
@@ -217,7 +268,95 @@ export async function updateStatisticEntryForCurrentClub(input: {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
+  const { data: existingStatistic, error: existingStatisticError } = await supabase
+    .from('player_statistics')
+    .select('player_id, match_id')
+    .eq('id', input.statisticId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingStatisticError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica statistica înainte de actualizare: ${existingStatisticError.message}`,
+    }
+  }
+
+  if (!existingStatistic?.player_id || !existingStatistic?.match_id) {
+    return { ok: false, message: 'Statistica selectată nu există în clubul curent.' }
+  }
+
+  const { data: existingPlayer, error: existingPlayerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', existingStatistic.player_id)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingPlayerError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica grupa statisticii înainte de actualizare: ${existingPlayerError.message}`,
+    }
+  }
+
+  if (!existingPlayer?.team_id) {
+    return { ok: false, message: 'Jucătorul asociat statisticii nu mai există în clubul curent.' }
+  }
+
+  const existingScopePermission = ensureViewerWithinAssignedTeamScope(
+    viewer,
+    existingPlayer.team_id,
+    'grupa statisticii'
+  )
+
+  if (!existingScopePermission.ok) {
+    return { ok: false, message: existingScopePermission.message }
+  }
+
+  const { data: playerRow, error: playerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', input.playerId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  const { data: matchRow, error: matchError } = await supabase
+    .from('matches')
+    .select('team_id')
+    .eq('id', input.matchId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (playerError || matchError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica noua asociere pentru statistică: ${playerError?.message ?? matchError?.message}`,
+    }
+  }
+
+  if (!playerRow?.team_id || !matchRow?.team_id) {
+    return { ok: false, message: 'Jucătorul sau meciul nou selectat nu există în clubul curent.' }
+  }
+
+  if (playerRow.team_id !== matchRow.team_id) {
+    return {
+      ok: false,
+      message: 'Jucătorul și meciul nou selectat nu aparțin aceleiași grupe.',
+    }
+  }
+
+  const newScopePermission = ensureViewerWithinAssignedTeamScope(
+    viewer,
+    playerRow.team_id,
+    'grupa statisticii'
+  )
+
+  if (!newScopePermission.ok) {
+    return { ok: false, message: newScopePermission.message }
+  }
+
   const { error } = await supabase
     .from('player_statistics')
     .update({
@@ -272,7 +411,53 @@ export async function deleteStatisticEntryForCurrentClub(statisticId: string) {
     }
   }
 
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
+  const { data: existingStatistic, error: existingStatisticError } = await supabase
+    .from('player_statistics')
+    .select('player_id')
+    .eq('id', statisticId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingStatisticError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica statistica înainte de ștergere: ${existingStatisticError.message}`,
+    }
+  }
+
+  if (!existingStatistic?.player_id) {
+    return { ok: false, message: 'Statistica selectată nu există în clubul curent.' }
+  }
+
+  const { data: existingPlayer, error: existingPlayerError } = await supabase
+    .from('players')
+    .select('team_id')
+    .eq('id', existingStatistic.player_id)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingPlayerError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica grupa statisticii înainte de ștergere: ${existingPlayerError.message}`,
+    }
+  }
+
+  if (!existingPlayer?.team_id) {
+    return { ok: false, message: 'Jucătorul asociat statisticii nu mai există în clubul curent.' }
+  }
+
+  const scopePermission = ensureViewerWithinAssignedTeamScope(
+    viewer,
+    existingPlayer.team_id,
+    'grupa statisticii'
+  )
+
+  if (!scopePermission.ok) {
+    return { ok: false, message: scopePermission.message }
+  }
+
   const { error } = await supabase
     .from('player_statistics')
     .delete()

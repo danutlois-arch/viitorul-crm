@@ -55,6 +55,32 @@ export function canManageResource(role: UserRole, resource: PermissionResource) 
   return manageMatrix[resource].includes(role)
 }
 
+export function ensureViewerWithinAssignedTeamScope(
+  viewer: Awaited<ReturnType<typeof getAppViewer>>,
+  targetTeamId: string,
+  subjectLabel = 'această grupă'
+) {
+  if (viewer.user.role !== 'coach') {
+    return { ok: true as const }
+  }
+
+  if (!viewer.user.assignedTeamId) {
+    return {
+      ok: false as const,
+      message: 'Contul de antrenor nu are încă o grupă alocată.',
+    }
+  }
+
+  if (viewer.user.assignedTeamId !== targetTeamId) {
+    return {
+      ok: false as const,
+      message: `Antrenorul poate gestiona doar grupa alocată lui, nu ${subjectLabel}.`,
+    }
+  }
+
+  return { ok: true as const }
+}
+
 export async function ensureViewerCanManage(resource: PermissionResource) {
   const viewer = await getAppViewer()
 
@@ -76,6 +102,30 @@ export async function ensureViewerCanManage(resource: PermissionResource) {
     viewer,
     message: `${roleLabels[viewer.user.role]} are acces doar de citire pentru ${resourceLabels[resource]}.`,
   }
+}
+
+export async function ensureViewerCanManageTeamResource(
+  resource: PermissionResource,
+  targetTeamId: string,
+  subjectLabel = 'această grupă'
+) {
+  const permission = await ensureViewerCanManage(resource)
+
+  if (!permission.ok) {
+    return permission
+  }
+
+  const scope = ensureViewerWithinAssignedTeamScope(permission.viewer, targetTeamId, subjectLabel)
+
+  if (!scope.ok) {
+    return {
+      ok: false as const,
+      viewer: permission.viewer,
+      message: scope.message,
+    }
+  }
+
+  return permission
 }
 
 export function getRoleCapabilityRows(role: UserRole) {

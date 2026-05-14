@@ -4,7 +4,10 @@ import { getAppViewer } from '@/lib/auth'
 import { competitions as competitionCatalog } from '@/lib/catalogs'
 import { matches as demoMatches } from '@/lib/demo-data'
 import { isSupabaseConfigured } from '@/lib/env'
-import { ensureViewerCanManage } from '@/lib/permissions'
+import {
+  ensureViewerCanManage,
+  ensureViewerCanManageTeamResource,
+} from '@/lib/permissions'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { getTeamsForCurrentClubLive } from '@/lib/teams'
 import type { CompetitionName, Match, MatchStatus } from '@/lib/types'
@@ -84,7 +87,9 @@ export async function getMatchesForCurrentClub() {
     .order('match_date', { ascending: false })
 
   if (error || !data) {
-    return []
+    throw new Error(
+      `Nu am putut încărca meciurile clubului din Supabase: ${error?.message ?? 'răspuns gol'}`
+    )
   }
 
   return (data as SupabaseMatchRow[]).map(mapMatchRow)
@@ -101,7 +106,11 @@ export async function createMatchForCurrentClub(input: {
   location: string
   notes: string
 }) {
-  const permission = await ensureViewerCanManage('matches')
+  const permission = await ensureViewerCanManageTeamResource(
+    'matches',
+    input.teamId,
+    'grupa selectată pentru meci'
+  )
   const viewer = permission.viewer
 
   if (!permission.ok) {
@@ -197,6 +206,41 @@ export async function updateMatchForCurrentClub(input: {
   }
 
   const supabase = createSupabaseAdminClient()
+  const { data: existingMatch, error: existingMatchError } = await supabase
+    .from('matches')
+    .select('team_id')
+    .eq('id', input.matchId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingMatchError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica meciul înainte de actualizare: ${existingMatchError.message}`,
+    }
+  }
+
+  if (!existingMatch?.team_id) {
+    return { ok: false, message: 'Meciul selectat nu există în clubul curent.' }
+  }
+
+  const scopePermission = await ensureViewerCanManageTeamResource(
+    'matches',
+    existingMatch.team_id,
+    'grupa meciului'
+  )
+
+  if (!scopePermission.ok) {
+    return { ok: false, message: scopePermission.message }
+  }
+
+  if (viewer.user.role === 'coach' && input.teamId !== existingMatch.team_id) {
+    return {
+      ok: false,
+      message: 'Antrenorul nu poate muta meciul în altă grupă decât cea alocată lui.',
+    }
+  }
+
   const { data: competitionRow, error: competitionError } = await supabase
     .from('competitions')
     .upsert({ label: input.competition }, { onConflict: 'label' })
@@ -262,6 +306,34 @@ export async function deleteMatchForCurrentClub(matchId: string) {
   }
 
   const supabase = createSupabaseAdminClient()
+  const { data: existingMatch, error: existingMatchError } = await supabase
+    .from('matches')
+    .select('team_id')
+    .eq('id', matchId)
+    .eq('club_id', viewer.club.id)
+    .maybeSingle()
+
+  if (existingMatchError) {
+    return {
+      ok: false,
+      message: `Nu am putut verifica meciul înainte de ștergere: ${existingMatchError.message}`,
+    }
+  }
+
+  if (!existingMatch?.team_id) {
+    return { ok: false, message: 'Meciul selectat nu există în clubul curent.' }
+  }
+
+  const scopePermission = await ensureViewerCanManageTeamResource(
+    'matches',
+    existingMatch.team_id,
+    'grupa meciului'
+  )
+
+  if (!scopePermission.ok) {
+    return { ok: false, message: scopePermission.message }
+  }
+
   const { error } = await supabase
     .from('matches')
     .delete()

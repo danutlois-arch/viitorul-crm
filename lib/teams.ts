@@ -80,6 +80,14 @@ export async function getTeamCatalogs() {
       supabase.from('competitions').select('id, label').order('label'),
     ])
 
+  if (categoryError || competitionError) {
+    throw new Error(
+      `Nu am putut încărca cataloagele de echipe și competiții din Supabase: ${
+        categoryError?.message ?? competitionError?.message ?? 'eroare necunoscută'
+      }`
+    )
+  }
+
   return {
     categories:
       !categoryError && categoryRows?.length
@@ -119,7 +127,9 @@ export async function getTeamsForCurrentClubLive() {
     .order('name')
 
   if (error || !data) {
-    return []
+    throw new Error(
+      `Nu am putut încărca echipele clubului din Supabase: ${error?.message ?? 'răspuns gol'}`
+    )
   }
 
   return (data as SupabaseTeamRow[]).map(mapTeamRow)

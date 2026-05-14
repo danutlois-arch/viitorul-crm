@@ -1,247 +1,71 @@
-# ClubPilot
+# Viitorul CRM
 
-Platformă SaaS pentru cluburi și academii de fotbal din România, construită cu `Next.js 14`, `TypeScript`, `Tailwind CSS` și pregătită pentru `Supabase`.
+Platformă internă pentru administrarea clubului FC Viitorul Onești:
 
-## Ce include
+- cluburi și branding
+- membership-uri și roluri
+- echipe și loturi
+- taxe și contribuții
+- prezență, meciuri, statistici, suspendări
+- notificări, remindere și `Coach Center`
 
-- App Router și structură modulară pentru paginile:
-  - `/login`
-  - `/dashboard`
-  - `/clubs`
-  - `/teams`
-  - `/players`
-  - `/payments`
-  - `/attendance`
-  - `/matches`
-  - `/statistics`
-  - `/suspensions`
-  - `/reports`
-- Componente reutilizabile:
-  - `Sidebar`
-  - `Header`
-  - `DataTable`
-  - `PlayerForm`
-  - `TeamForm`
-  - `MatchForm`
-  - `AttendanceForm`
-  - `PaymentStatusBadge`
-  - `StatCard`
-- Date demo pentru `FC Viitorul Onești`
-- Schema SQL Supabase cu tabele multi-club și politici Row Level Security
+Stack principal:
 
-## Pornire locală
+- `Next.js 14` App Router
+- `TypeScript`
+- `Tailwind CSS`
+- `Supabase` pentru auth, database și storage
+- `Stripe` pentru contribuții online
 
-1. Instalează dependențele:
-
-```bash
-npm install
-```
-
-2. Creează fișierul `.env.local` pe baza lui `.env.example`
-
-3. Rulează aplicația:
+## Scripturi folosite pentru CRM
 
 ```bash
 npm run dev
-```
-
-Pentru verificarea finală înainte de lansare:
-
-```bash
+npm run build
+npm run start
+npm run lint
 npm run launch:check
 ```
 
-Poți configura și default-urile de produs prin:
+## Configurare mediu
 
-- `NEXT_PUBLIC_APP_NAME`
-- `NEXT_PUBLIC_DEFAULT_SEASON`
-- `NEXT_PUBLIC_DEFAULT_CLUB_NAME`
+Vezi [.env.example](/Users/laviniabarla/Desktop/viitorul-crm/.env.example).
+
+Pentru funcționare live sunt necesare cel puțin:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_APP_URL`
+
+Pentru reminder-e, email și plăți:
+
+- `RESEND_API_KEY`
+- `EMAIL_FROM`
+- `EMAIL_REPLY_TO`
+- `REMINDERS_CRON_SECRET`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
 
 ## Supabase
 
-Schema bazei de date și politicile RLS sunt în:
+Schema principală este în:
 
-- `supabase/schema.sql`
-- `supabase/migrations/2026-04-29_stripe_contributions.sql`
-- `supabase/migrations/2026-04-29_club_branding.sql`
+[schema.sql](/Users/laviniabarla/Desktop/viitorul-crm/supabase/schema.sql)
 
-Ideea de acces multi-club:
+Migrarea pentru `Coach Center` este în:
 
-- fiecare utilizator are profil în `profiles`
-- apartenența la un club și rolul sunt în `club_memberships`
-- toate tabelele operaționale au `club_id`
-- politicile folosesc `auth.uid()` și funcția `has_club_access(club_id)`
+[2026-05-01_coach_center.sql](/Users/laviniabarla/Desktop/viitorul-crm/supabase/migrations/2026-05-01_coach_center.sql)
 
-## Branding club
+## Lansare internă
 
-Modulul `/clubs` permite:
+Checklist-uri utile:
 
-- actualizare date club
-- setare `logo_url`
-- upload real în Supabase Storage pentru logo
-- alegere `theme_key` implicit pe club
+- [ops-checklist.md](/Users/laviniabarla/Desktop/viitorul-crm/docs/ops-checklist.md)
+- [fc-viitorul-launch-checklist.md](/Users/laviniabarla/Desktop/viitorul-crm/docs/fc-viitorul-launch-checklist.md)
+- [internal-launch-runbook.md](/Users/laviniabarla/Desktop/viitorul-crm/docs/internal-launch-runbook.md)
 
-Rulează și migrarea de branding:
+## Notă despre `src/` și Vite
 
-```sql
-\i supabase/migrations/2026-04-29_club_branding.sql
-```
-
-Pentru upload logo prin Storage, creează bucket-ul public `club-assets`.
-
-## Stripe
-
-Integrarea actuală folosește `Stripe Checkout` pentru donații și sponsorizări online.
-
-### Variabile necesare
-
-Adaugă în `.env.local`:
-
-```bash
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-```
-
-### Setup minim
-
-1. Rulează migrarea pentru contribuții:
-
-```sql
--- rulează în Supabase SQL editor
-\i supabase/migrations/2026-04-29_stripe_contributions.sql
-```
-
-2. În Stripe Dashboard:
-
-- creează sau folosește un cont Stripe activ
-- copiază `Secret key`
-- creează webhook pentru:
-  - `checkout.session.completed`
-- setează endpoint-ul:
-  - `http://localhost:3000/api/stripe/webhook` pentru test local prin Stripe CLI
-  - sau URL-ul public al aplicației în producție
-
-3. Pornește aplicația:
-
-```bash
-npm run dev
-```
-
-### Test local cu Stripe CLI
-
-1. Autentifică Stripe CLI:
-
-```bash
-stripe login
-```
-
-2. Forward pentru webhook local:
-
-```bash
-stripe listen --forward-to localhost:3000/api/stripe/webhook
-```
-
-3. Copiază secretul `whsec_...` afișat de Stripe CLI în `.env.local`
-
-4. Creează o contribuție online din modulul `/payments`
-
-5. Finalizează plata cu cardul de test:
-
-```text
-4242 4242 4242 4242
-orice dată viitoare
-orice CVC
-```
-
-### Flux curent
-
-- CRM-ul creează o înregistrare `funding_contributions`
-- pentru contribuțiile `online`, aplicația creează un `Stripe Checkout Session`
-- utilizatorul este redirecționat către Stripe
-- webhook-ul `checkout.session.completed` marchează contribuția ca `paid`
-
-### Ce urmărește CRM-ul
-
-- donații online
-- sponsorizări online
-- link de checkout generat
-- status plată
-- reconciliere prin `external_checkout_id`
-
-## Email reminders
-
-Aplicația este pregătită și pentru remindere pe email, folosind `Resend` ca provider.
-
-### Variabile necesare
-
-Adaugă în `.env.local`:
-
-```bash
-RESEND_API_KEY=re_...
-EMAIL_FROM="CRM FC Viitorul Onesti <noreply@fcviitorulonesti.ro>"
-EMAIL_REPLY_TO=office@fcviitorulonesti.ro
-```
-
-### Migrare
-
-Rulează și migrarea pentru jurnalul de email:
-
-```sql
-\i supabase/migrations/2026-04-29_email_dispatches.sql
-```
-
-### Ce include acum
-
-- preferințe de notificări per utilizator
-- inbox persistent de notificări
-- trimitere manuală a unui reminder pe email către utilizatorul curent
-- jurnal `email_dispatches` pentru audit
-
-## Scheduled reminders
-
-Scaffold-ul pentru remindere recurente este pregătit pentru:
-
-- programare per utilizator
-- rulare manuală `Run now`
-- istoric de rulare
-- endpoint pentru cron extern
-
-### Variabile necesare
-
-```bash
-REMINDERS_CRON_SECRET=change-me
-```
-
-### Migrare
-
-```sql
-\i supabase/migrations/2026-04-29_scheduled_reminders.sql
-```
-
-### Endpoint cron
-
-Trimite un `POST` către:
-
-```text
-/api/reminders/run
-```
-
-cu header:
-
-```text
-x-cron-secret: REMINDERS_CRON_SECRET
-```
-
-### Vercel Cron
-
-Proiectul include deja configurare de baza in [vercel.json](/Users/laviniabarla/Desktop/viitorul-crm/vercel.json) pentru rulare:
-
-- Luni-Vineri la `09:00`
-- endpoint: `/api/reminders/run`
-
-### Checklist operare
-
-Vezi si [docs/ops-checklist.md](/Users/laviniabarla/Desktop/viitorul-crm/docs/ops-checklist.md) pentru activarea completa in productie.
-Pentru activarea FC Viitorul Onești, vezi [docs/fc-viitorul-launch-checklist.md](/Users/laviniabarla/Desktop/viitorul-crm/docs/fc-viitorul-launch-checklist.md).
-Pentru ordinea exacta de lansare interna, vezi [docs/internal-launch-runbook.md](/Users/laviniabarla/Desktop/viitorul-crm/docs/internal-launch-runbook.md).
+Repo-ul conține încă un MVP Vite mai vechi în `src/` și scripturi `legacy:mvp:*`.
+Acestea nu fac parte din fluxul principal Viitorul CRM și nu trebuie folosite pentru dezvoltarea curentă a aplicației Next.js.

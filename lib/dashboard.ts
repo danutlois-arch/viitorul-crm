@@ -1,9 +1,3 @@
-import {
-  contributions as demoContributions,
-  matches as demoMatches,
-  players as demoPlayers,
-  teams as demoTeams,
-} from '@/lib/demo-data'
 import { getAttendanceForCurrentClub } from '@/lib/attendance'
 import { getMatchesForCurrentClub } from '@/lib/matches'
 import { getPaymentsForCurrentClub } from '@/lib/payments'
@@ -49,7 +43,7 @@ function getAttentionPlayers(players: Player[]) {
 }
 
 function getTopScorer(players: Player[]) {
-  return [...players].sort((left, right) => right.goals - left.goals)[0] ?? demoPlayers[0]
+  return [...players].sort((left, right) => right.goals - left.goals)[0] ?? null
 }
 
 function getAverageAttendance(attendanceSessions: AttendanceSession[]) {
@@ -64,7 +58,7 @@ function getAverageAttendance(attendanceSessions: AttendanceSession[]) {
 }
 
 function getTopContribution(contributions: Contribution[]) {
-  return [...contributions].sort((left, right) => right.amount - left.amount)[0] ?? demoContributions[0]
+  return [...contributions].sort((left, right) => right.amount - left.amount)[0] ?? null
 }
 
 export async function getDashboardData() {
@@ -78,10 +72,10 @@ export async function getDashboardData() {
       getSuspensionsForCurrentClub(),
     ])
 
-  const players = playerData.players.length ? playerData.players : []
-  const activeTeams = teams.length ? teams : []
-  const activeMatches = matches.length ? matches : []
-  const contributions = paymentData.contributions.length ? paymentData.contributions : []
+  const players = playerData.players
+  const activeTeams = teams
+  const activeMatches = matches
+  const contributions = paymentData.contributions
 
   const topScorer = getTopScorer(players)
   const topContribution = getTopContribution(contributions)
